@@ -1,0 +1,122 @@
+"""
+This module implements the real valued (non convolutionary) network for the mnist dataset
+"""
+import torch
+from torch.utils.data import Dataset
+from torch.utils.data import DataLoader
+import numpy as np
+import tqdm
+import os
+import pickle
+
+from discrete_nn.dataset.mnist import MNIST
+from discrete_nn.settings import model_path
+
+
+class MnistPiReal(torch.nn.Module):
+    """
+    Real valued (non convolutionary) network for the mnist dataset
+    """
+    def __init__(self):
+        super().__init__()
+        # defining all the netorks layers
+        self.netlayers = torch.nn.Sequential(
+            torch.nn.Dropout(p=0.2),
+            torch.nn.Linear(784, 1200),
+            torch.nn.BatchNorm1d(1200, momentum=0.1),
+            # momentum equivalent to alpha on reference impl.
+            # should batch normalization be here or after the activation function ?
+            torch.nn.Tanh(),
+            #
+            torch.nn.Dropout(p=0.4),
+            torch.nn.Linear(1200, 1200),
+            torch.nn.BatchNorm1d(1200, momentum=0.1),
+            torch.nn.Tanh(),
+            #
+            torch.nn.Dropout(p=0.4),
+            torch.nn.Linear(1200, 10))  # last layer outputs the unnormalized loglikelihood used by the softmax later
+
+    def forward(self, x):
+        # takes image vector
+        return self.netlayers(x)
+
+    def predict(self, x):
+        unregularized_probs = self.forward(x)
+        probs = torch.nn.functional.softmax(unregularized_probs, dim=1)[0, :]
+        return torch.argmax(probs)
+
+
+class DatasetMNIST(Dataset):
+    """
+    Dataset for pytorch's DataLoader
+    """
+    def __init__(self, x, y):
+        self.x = torch.from_numpy(x)*2 - 1
+        self.y = torch.from_numpy(y).long()
+
+    def __len__(self):
+        return self.x.shape[0]
+
+    def __getitem__(self, item_inx):
+        return self.x[item_inx], self.y[item_inx]
+
+
+def train_model():
+    # basic dataset holder
+    mnist = MNIST()
+    # creates the dataloader for pytorch
+    batch_size = 100
+    train_loader = DataLoader(dataset=DatasetMNIST(mnist.x_train, mnist.y_train), batch_size=batch_size,
+                              shuffle=True)
+    validation_loader = DataLoader(dataset=DatasetMNIST(mnist.x_val, mnist.y_val), batch_size=batch_size,
+                              shuffle=False)
+    test_loader = DataLoader(dataset=DatasetMNIST(mnist.x_test, mnist.y_test), batch_size=batch_size,
+                             shuffle=False)
+
+    net = MnistPiReal()
+    optimizer = torch.optim.Adam(net.parameters(), lr=1e-3)
+    loss_fc = torch.nn.CrossEntropyLoss()
+    # todo check regularization
+    
+    num_epochs = 200
+
+    epochs_train_error = []
+    epochs_validation_error = []
+
+    for epoch_in in range(num_epochs):
+        net.train()
+        batch_loss_train = []
+        # training part of epoch
+        for batch_inx, (X, Y) in enumerate(train_loader):
+            optimizer.zero_grad()  # reset gradients from previous iteration
+            # do forward pass
+            net_output = net(X)
+            # compute loss
+            loss = loss_fc(net_output, Y)
+            # backward propagate loss
+            loss.backward()
+            optimizer.step()
+            batch_loss_train.append(loss.item())
+        epochs_train_error.append(np.mean(batch_loss_train))
+
+        # starting epochs evaluation
+        net.eval()
+        validation_losses = []
+
+        # disables gradient calculation since it is not needed
+        with torch.no_grad():
+            for batch_inx, (X, Y) in enumerate(validation_loader):
+                outputs = net(X)
+                loss = loss_fc(outputs, Y)
+                validation_losses.append(loss)
+        epochs_validation_error.append(np.mean(validation_losses))
+        print(f"epoch {epoch_in + 1}/{num_epochs} " 
+              f"train loss: {epochs_train_error[-1]:.4f} / "
+              f"test loss: {epochs_validation_error[-1]:.4f}")
+
+        with open(os.path.join(model_path, "mnist_pi_real.pickle"), "wb") as f:
+            pickle.dump(net, f)
+
+
+if __name__ == "__main__":
+    train_model()
