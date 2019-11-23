@@ -8,6 +8,7 @@ import numpy as np
 import tqdm
 import os
 import pickle
+from sklearn.metrics import accuracy_score
 
 from discrete_nn.dataset.mnist import MNIST
 from discrete_nn.settings import model_path
@@ -112,10 +113,29 @@ def train_model():
         epochs_validation_error.append(np.mean(validation_losses))
         print(f"epoch {epoch_in + 1}/{num_epochs} " 
               f"train loss: {epochs_train_error[-1]:.4f} / "
-              f"test loss: {epochs_validation_error[-1]:.4f}")
+              f"validation loss: {epochs_validation_error[-1]:.4f}")
 
         with open(os.path.join(model_path, "mnist_pi_real.pickle"), "wb") as f:
             pickle.dump(net, f)
+
+    # test network
+    test_losses = []
+    targets = []
+    predictions = []
+    # disables gradient calculation since it is not needed
+    with torch.no_grad():
+        for batch_inx, (X, Y) in enumerate(test_loader):
+            outputs = net(X)
+            loss = loss_fc(outputs, Y)
+            test_losses.append(loss.item())
+
+            output_probs = torch.nn.functional.softmax(outputs, dim=1)
+            output_labels = output_probs.argmax(dim=1)
+            predictions += output_labels.tolist()
+            targets += Y.tolist()
+
+    print(f"test accuracy : {accuracy_score(targets, predictions)}")
+    print(f"test cross entropy loss:{np.mean(test_losses)}")
 
 
 if __name__ == "__main__":
