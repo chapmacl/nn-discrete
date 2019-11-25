@@ -13,15 +13,20 @@ from sklearn.metrics import accuracy_score
 from discrete_nn.dataset.mnist import MNIST
 from discrete_nn.settings import model_path
 
+torch.set_default_tensor_type(torch.cuda.FloatTensor)
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
 
 class MnistPiReal(torch.nn.Module):
     """
     Real valued (non convolutionary) network for the mnist dataset
     """
+
     def __init__(self):
         super().__init__()
         # defining all the netorks layers
         self.netlayers = torch.nn.Sequential(
+
             torch.nn.Dropout(p=0.2),
             torch.nn.Linear(784, 1200),
             torch.nn.BatchNorm1d(1200, momentum=0.1),
@@ -51,9 +56,12 @@ class DatasetMNIST(Dataset):
     """
     Dataset for pytorch's DataLoader
     """
+
     def __init__(self, x, y):
-        self.x = torch.from_numpy(x)*2 - 1
+        self.x = torch.from_numpy(x) * 2 - 1
         self.y = torch.from_numpy(y).long()
+        self.x = self.x.to(device)
+        self.y = self.y.to(device)
 
     def __len__(self):
         return self.x.shape[0]
@@ -70,15 +78,16 @@ def train_model():
     train_loader = DataLoader(dataset=DatasetMNIST(mnist.x_train, mnist.y_train), batch_size=batch_size,
                               shuffle=True)
     validation_loader = DataLoader(dataset=DatasetMNIST(mnist.x_val, mnist.y_val), batch_size=batch_size,
-                              shuffle=False)
+                                   shuffle=False)
     test_loader = DataLoader(dataset=DatasetMNIST(mnist.x_test, mnist.y_test), batch_size=batch_size,
                              shuffle=False)
 
     net = MnistPiReal()
+    net = net.to(device)
     optimizer = torch.optim.Adam(net.parameters(), lr=1e-3)
     loss_fc = torch.nn.CrossEntropyLoss()
     # todo check regularization
-    
+
     num_epochs = 200
 
     epochs_train_error = []
@@ -110,8 +119,8 @@ def train_model():
                 outputs = net(X)
                 loss = loss_fc(outputs, Y)
                 validation_losses.append(loss)
-        epochs_validation_error.append(np.mean(validation_losses))
-        print(f"epoch {epoch_in + 1}/{num_epochs} " 
+        epochs_validation_error.append(torch.mean(torch.stack(validation_losses)))
+        print(f"epoch {epoch_in + 1}/{num_epochs} "
               f"train loss: {epochs_train_error[-1]:.4f} / "
               f"validation loss: {epochs_validation_error[-1]:.4f}")
 
@@ -139,4 +148,6 @@ def train_model():
 
 
 if __name__ == "__main__":
+
+    print('Using device:', device)
     train_model()
