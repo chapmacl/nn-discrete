@@ -41,11 +41,6 @@ class MnistPiReal(torch.nn.Module):
         # takes image vector
         return self.netlayers(x)
 
-    def predict(self, x):
-        unregularized_probs = self.forward(x)
-        probs = torch.nn.functional.softmax(unregularized_probs, dim=1)[0, :]
-        return torch.argmax(probs)
-
 
 class DatasetMNIST(Dataset):
     """
@@ -75,7 +70,7 @@ def train_model():
                              shuffle=False)
 
     net = MnistPiReal()
-    optimizer = torch.optim.Adam(net.parameters(), lr=1e-3)
+    optimizer = torch.optim.Adam(net.parameters(), lr=1e-3, weight_decay=1e-4)
     loss_fc = torch.nn.CrossEntropyLoss()
     # todo check regularization
     
