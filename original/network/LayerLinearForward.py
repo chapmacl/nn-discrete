@@ -178,7 +178,9 @@ class LayerLinearForward(Layer):
             
         return W_mean, W_var, W_map, W_sample, W_sample_reparam, cost_regularizer
     
-    def _addTernaryDistribution(self, shape, parameterization, initialization_method, initial_parameters, regularizer, regularizer_weight, regularizer_parameters, enable_scale_factors, rng, srng):
+    def _addTernaryDistribution(self, shape, parameterization, initialization_method, initial_parameters,
+                                regularizer, regularizer_weight, regularizer_parameters,
+                                enable_scale_factors, rng, srng):
         if parameterization is None:
             parameterization = 'shayer'
         if initialization_method is None:
