@@ -171,7 +171,7 @@ def main():
                             'cooldown' : 30,
                             'patience' : 10,
                             'factor'   : 0.5},
-        n_epochs=300,
+        n_epochs=125,
         callback_validation_error_decreased=[(cbErrVaDecreased, [])])
 
     # Store model parameters. The model parameters of the best model according to the validation error are now in
