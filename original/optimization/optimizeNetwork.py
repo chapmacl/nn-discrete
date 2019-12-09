@@ -62,8 +62,10 @@ def optimizeNetwork(model,
         rng = np.random.RandomState(rng_seed)
 
     p_names_weights_real = ['W', 'W_mu', 'W_sigma_rho']
-    p_names_weights_discrete = ['W_rho', 'W_rhoA', 'W_rhoB', 'W_rhoC', 'W_rhoD', 'W_rhoM1', 'W_rhoM05', 'W_rhoP05', 'W_rhoP1']
-    p_names_bias = ['b', 'b_mu', 'b_rho', 'b_sigma_rho', 'b_rhoA', 'b_rhoB', 'b_rhoC', 'b_rhoD', 'b_rhoM1', 'b_rhoM05', 'b_rhoP05', 'b_rhoP1']
+    p_names_weights_discrete = ['W_rho', 'W_rhoA', 'W_rhoB', 'W_rhoC', 'W_rhoD', 'W_rhoM1', 'W_rhoM05',
+                                'W_rhoP05', 'W_rhoP1']
+    p_names_bias = ['b', 'b_mu', 'b_rho', 'b_sigma_rho', 'b_rhoA', 'b_rhoB', 'b_rhoC', 'b_rhoD', 'b_rhoM1',
+                    'b_rhoM05', 'b_rhoP05', 'b_rhoP1']
     p_names_batchnorm = ['beta', 'gamma']
     p_names_scale_factor = ['scale_factor_rho']
     parameters, step_size_lst = [], []
