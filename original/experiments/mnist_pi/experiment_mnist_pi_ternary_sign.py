@@ -191,7 +191,7 @@ def main():
                             'cooldown' : 50,
                             'patience' : 10,
                             'factor'   : 0.5},
-        n_epochs=500,
+        n_epochs=200,
         do_bn_updates_after_epoch=True,
         callback_validation_error_decreased=[(cbErrVaDecreased, [])])
 
