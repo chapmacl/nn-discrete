@@ -36,7 +36,7 @@ class LayerActivationSign(Layer):
     # private methods section   
     
     @staticmethod
-    def signOfGaussian(m, v, eps=1e-8):
-        m_out = T.erf(m / T.sqrt(2. * v + eps))
+    def signOfGaussian(mean, variance, eps=1e-8):
+        m_out = T.erf(mean / T.sqrt(2. * variance + eps))
         v_out = 1. - T.sqr(m_out) + max(1e-6, eps)
         return m_out, v_out

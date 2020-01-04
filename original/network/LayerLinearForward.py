@@ -443,7 +443,7 @@ class LayerLinearForward(Layer):
             W_resampled = T.switch(T.eq(W_resampled, -1.), W_resampled, -scale_factor[0])
             self._sampling_updates += [(W_sample, W_resampled)]
         else:
-            W_mean = -W_p_m1 + W_p_p1
+            W_mean = -1 * W_p_m1 + 1* W_p_p1
             W_var = W_p_m1 * T.sqr(1. + W_mean) + W_p_0 * T.sqr(W_mean) + W_p_p1 * T.sqr(1. - W_mean)
             W_map = T.cast(T.argmax(W_p, axis=-1), 'float32') - 1.
               
