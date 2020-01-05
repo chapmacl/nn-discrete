@@ -34,8 +34,6 @@ class DiscreteLinear(nn.Module):
         self.b_logits = torch.nn.Parameter(self.discretize_weights_probabilistic(initialization_bias),
                                            requires_grad=True)
 
-
-
     def discretize_weights_shayer(self, real_weights: Tensor):
         """
         Discretizes the weights from a matrix with real weights based on the Shayer method (pg. 9 of paper). Called by
@@ -110,8 +108,14 @@ class DiscreteLinear(nn.Module):
 
             :returns: a 1D row of weights with their respective cdf values
             """
-
             num_weights = weight_row.shape[0]
+
+            sort_indices = weight_row.argsort(dim=0) + 1  # indices start with zero so we have to shift by 1
+
+            cdf = sort_indices.double() / num_weights
+            return cdf
+            """
+            
             # flattening weight matrix
             # flat_weight_row = weight_matrix.reshape(1, num_weights)
             # repeat the flat vector num_weight times into consecutive rows
@@ -123,11 +127,12 @@ class DiscreteLinear(nn.Module):
             # count all times a weight from the vector was greater than one in the row by checking the amount of
             # <= 0 values on the diff matrix
             count_row = (diff_matrix <= 0).sum(dim=1)
-            # in this row, for each location,  we have the number of time the corresponding weight was greater or
+            # in this row, for each location,  we have the number of times the corresponding weight was greater or
             # equal to another
 
             # we normalize to get the CDF
             return count_row.double() / num_weights
+            """
 
         # todo handle weights of different signs separetely?
         """
@@ -156,26 +161,32 @@ class DiscreteLinear(nn.Module):
 
         # we use shayers discretization method with the shifted weights
         shayers_discretized = self.discretize_weights_shayer(scaled_weights)
+
+        # we need to have log-probabilities
+        shayers_discretized = torch.log(shayers_discretized)
+
         return shayers_discretized
 
-    def generate_weight_distribution(self, discretized_weights):
+    def generate_weight_distribution(self, logit_weights):
         """
-        Takes a multinomial weight distribution and generates a continuous gaussian distribution
-        :param discretized_weights: a tensor with dimensions (dicretization levels x output features x input_features)
-        with the discrete distribution
+        Fits a gaussian distribution to the logits in logit_weights.
+        :param logit_weights: a tensor with dimensions (dicretization levels x output features x input_features)
+        with the discrete distribution as logits
         :return: a tuple with the means of the gaussian distributions as a (output features x input_features) tensor
         and a the standard deviations in a tensor of the same format
         """
 
         # create placeholder tensors for mean and stddevs
-        weight_mean = torch.zeros_like(discretized_weights[0])
-        weight_var = torch.zeros_like(discretized_weights[0])
+        weight_probabilities = torch.exp(logit_weights)
+
+        weight_mean = torch.zeros_like(weight_probabilities[0])
+        weight_var = torch.zeros_like(weight_probabilities[0])
         for inx, discrete_weight in enumerate(self.discrete_values):
             # weight prob * weight value
-            weight_mean += discretized_weights[inx, :, :] * discrete_weight
+            weight_mean += weight_probabilities[inx, :, :] * discrete_weight
         for inx, discrete_weight in enumerate(self.discrete_values):
             # weight prob * (weight value - mean)^2
-            weight_var += discretized_weights[inx, :, :] * torch.pow(discrete_weight-weight_mean, 2)
+            weight_var += weight_probabilities[inx, :, :] * torch.pow(discrete_weight-weight_mean, 2)
 
         return weight_mean, weight_var
 
@@ -191,15 +202,15 @@ class DiscreteLinear(nn.Module):
         output_mean = None
         output_var = None
 
-        W_mean, W_var = self.generate_weight_distribution(self.W_logits)
+        w_mean, w_var = self.generate_weight_distribution(self.W_logits)
         b_mean, b_var = self.generate_weight_distribution(self.b_logits)
 
         if self.in_feat_type == ValueTypes.REAL:
             # transpose the input matrix to (in_feat x n)
-            input_values = x.transpose(0, 1)
+            input_values = x.transpose(0, 1).double()
             # outputs are a tensor (out_feat x n)
-            output_mean = torch.mm(W_mean, input_values)
-            output_var = torch.mm(W_var, torch.pow(input_values, 2))
+            output_mean = torch.mm(w_mean, input_values)
+            output_var = torch.mm(w_var, torch.pow(input_values, 2))
 
         elif self.in_feat_type == ValueTypes.GAUSSIAN:
             x_mean = x[:, 0, :]
@@ -207,23 +218,23 @@ class DiscreteLinear(nn.Module):
             # transpose the input matrices to (in_feat x n)
             x_mean = x_mean.transpose(1, 0)
             x_var = x_var.transpose(1, 0)
-            output_mean = torch.mm(W_mean, x_mean)
-            output_var = torch.mm(torch.pow(x_mean, 2), W_var) + torch.mm(x_var, torch.pow(W_mean, 2)) +\
-                torch.mm(x_var, W_var)
+            output_mean = torch.mm(w_mean, x_mean)
+            output_var = torch.mm(torch.pow(x_mean, 2), w_var) + torch.mm(x_var, torch.pow(w_mean, 2)) +\
+                torch.mm(x_var, w_var)
         else:
             raise ValueError(f"The type {self.in_feat_type} given for the input type of layer is invalid")
         # need to return the matrix back to the original axis layout by transposing again
         output_mean = output_mean.transpose(0, 1)
         output_var = output_var.transpose(0, 1)
 
-        output_mean += b_mean
-        output_var += b_var
+        output_mean += b_mean[:, 0]  # broadcasting to all samples
+        output_var += b_var[:, 0]
 
         return torch.stack([output_mean, output_var], dim=1)
 
 
 class TernaryLinear(DiscreteLinear):
-    def __init__(self, input_features, input_feature_type: ValueTypes, output_features, real_init_weights):
+    def __init__(self, input_features, input_feature_type: ValueTypes, output_features, real_init_weights, real_init_bias):
         """
         Discretizes the weights from a matrix with real weights based on the "probabilistic" method proposed in
         the paper (pg. 9, last paragraph)
@@ -233,13 +244,14 @@ class TernaryLinear(DiscreteLinear):
         :param real_init_weights: the real initialization weights
         :return: a (num_discrete_values x output_features x input_features) with the probabilities
         """
-        super().__init__(input_features, input_feature_type, output_features, real_init_weights, [-1, 0, 1])
+        super().__init__(input_features, input_feature_type, output_features, real_init_weights,real_init_bias,
+                         [-1, 0, 1])
 
 
 if __name__ == "__main__":
-    test_weight_matrix = torch.tensor([[2.1, 0.3, -0.5, -2], [4., 0., 2., -1.], [2.1, 0.3, -0.5, -2]])
+    test_weight_matrix = torch.tensor([[2.1, 30, -0.5, -2], [4., 0., 2., -1.], [2.1, 0.3, -0.5, -2]])
     test_bias_matrix = torch.tensor([[2.1, 0.3, -0.5]])
     test_samples = torch.rand(10, 4).double()  # 10 samples, 4 in dimensions
     layer = DiscreteLinear(4, ValueTypes.REAL, 3, test_weight_matrix, test_bias_matrix, [-2, -1, 0, 1, 2])
     x = layer.forward(test_samples)
-
+    print(x.shape)

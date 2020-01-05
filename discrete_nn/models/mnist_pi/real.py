@@ -25,7 +25,7 @@ class MnistPiReal(torch.nn.Module):
 
     def __init__(self):
         super().__init__()
-        # defining all the netorks layers
+        # defining all the network's layers
         self.netlayers = torch.nn.Sequential(
 
             torch.nn.Dropout(p=0.2),
@@ -47,6 +47,22 @@ class MnistPiReal(torch.nn.Module):
         # takes image vector
         return self.netlayers(x)
 
+    def training_parameters(self):
+        """:returns a dictionary with the trainable parameters"""
+        internal_dict = {name: value for name, value in self.named_parameters()}
+
+        repr_dict = dict()
+        repr_dict["L1_Linear_W"] = internal_dict["netlayers.1.weight"]
+        repr_dict["L1_Linear_b"] = internal_dict["netlayers.1.bias"].reshape(-1, 1)
+        repr_dict["L1_BatchNorm_W"] = internal_dict["netlayers.2.weight"]
+        repr_dict["L1_BatchNorm_b"] = internal_dict["netlayers.2.bias"]
+        repr_dict["L2_Linear_W"] = internal_dict["netlayers.5.weight"]
+        repr_dict["L2_Linear_b"] = internal_dict["netlayers.5.bias"].reshape(-1, 1)
+        repr_dict["L2_BatchNorm_W"] = internal_dict["netlayers.6.weight"]
+        repr_dict["L2_BatchNorm_b"] = internal_dict["netlayers.6.bias"]
+        repr_dict["L3_Linear_W"] = internal_dict["netlayers.9.weight"]
+        repr_dict["L3_Linear_b"] = internal_dict["netlayers.9.bias"].reshape(-1, 1)
+        return repr_dict
 
 class DatasetMNIST(Dataset):
     """
