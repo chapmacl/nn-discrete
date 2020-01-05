@@ -146,8 +146,8 @@ def train_model():
               f"train loss: {epochs_train_error[-1]:.4f} / "
               f"validation loss: {epochs_validation_error[-1]:.4f}")
 
-        with open(os.path.join(model_path, "mnist_pi_real.pickle"), "wb") as f:
-            pickle.dump(net, f)
+    with open(os.path.join(model_path, "mnist_pi_ternary_tanh.pickle"), "wb") as f:
+        pickle.dump(net, f)
 
     # test network
     test_losses = []
