@@ -1,30 +1,45 @@
 """
 Implements different linear layer classes by extending from torch.nn.Module
 """
+from discrete_nn.layers.types import ValueTypes
+
+from torch import nn
 from torch import Tensor
 import torch
-from torch import nn
 
 
 class DiscreteLinear(nn.Module):
-    def __init__(self, input_features, output_features, discretized_values):
+    def __init__(self, input_features, input_feature_type: ValueTypes, output_features, initialization_weights,
+                 initialization_bias, discretized_values):
         """
         Initializes a linear layer with discrete weights
         :param input_features: the input dimension
+        :param input_feature_type: the type of the input (e.g. real, gaussian distribution)
         :param output_features: the output dimension (# of neurons in layer)
-        :param init_weights: a tensor (output_features x input_features) with pre trained real weights
+        :param initialization_weights: a tensor (output_features x input_features) with pre trained real weights to be
+        used for initializing the discrete ones
+        :param initialization_bias: a tensor (output_features x 1) with pre trained real weights for bias to be
+        used for initializing the discrete ones
         :param discretized_values: a list of the discretized values
         """
         super().__init__()
         self.in_feat = input_features
+        self.in_feat_type = input_feature_type
         self.ou_feat = output_features
         self.discrete_values = sorted(discretized_values)
+        # todo what about bias?
+        # these are the tunable parameters
+        self.W_logits = torch.nn.Parameter(self.discretize_weights_probabilistic(initialization_weights),
+                                           requires_grad=True)
+        self.b_logits = torch.nn.Parameter(self.discretize_weights_probabilistic(initialization_bias),
+                                           requires_grad=True)
+
+
 
     def discretize_weights_shayer(self, real_weights: Tensor):
         """
-        todo finish this
-        Discretizes the weights from a matrix with real weights based on the Shayer method (pg. 9 of paper)
-
+        Discretizes the weights from a matrix with real weights based on the Shayer method (pg. 9 of paper). Called by
+        discretize_weights_probabilistic.
         :param real_weights: a (output_features x input_features) matrix with real weights
         :return: a (num_discrete_values x output_features x input_features) with the probabilities
         """
@@ -83,6 +98,7 @@ class DiscreteLinear(nn.Module):
         """
         Initializes a linear layer with discrete weights. Redistributes weights and calls discretize_weights_shayer
         :param real_weights: a (output_features x input_features) matrix with real weights
+        :returns: weight distributions (as a mean and standard deviations)
 
         """
 
@@ -139,22 +155,91 @@ class DiscreteLinear(nn.Module):
         scaled_weights += lower_bound_interval
 
         # we use shayers discretization method with the shifted weights
-        return self.discretize_weights_shayer(scaled_weights)
+        shayers_discretized = self.discretize_weights_shayer(scaled_weights)
+        return shayers_discretized
+
+    def generate_weight_distribution(self, discretized_weights):
+        """
+        Takes a multinomial weight distribution and generates a continuous gaussian distribution
+        :param discretized_weights: a tensor with dimensions (dicretization levels x output features x input_features)
+        with the discrete distribution
+        :return: a tuple with the means of the gaussian distributions as a (output features x input_features) tensor
+        and a the standard deviations in a tensor of the same format
+        """
+
+        # create placeholder tensors for mean and stddevs
+        weight_mean = torch.zeros_like(discretized_weights[0])
+        weight_var = torch.zeros_like(discretized_weights[0])
+        for inx, discrete_weight in enumerate(self.discrete_values):
+            # weight prob * weight value
+            weight_mean += discretized_weights[inx, :, :] * discrete_weight
+        for inx, discrete_weight in enumerate(self.discrete_values):
+            # weight prob * (weight value - mean)^2
+            weight_var += discretized_weights[inx, :, :] * torch.pow(discrete_weight-weight_mean, 2)
+
+        return weight_mean, weight_var
+
+    def forward(self, x: torch.Tensor):
+        """
+        Applies an input to the network. Depending on the type of the input value a different input value is expected
+        :param x: (n x in_feat) if the values are real, (n x 2 x in_feat) where the second dimension contains, in order,
+        the mean and variance,  n is the number of samples and, in_feat is the number of input features.
+        :return: a tensor with dimensions (n x out_feat) if the values are real, (n x 2 x out_feat) where the second
+        dimension contains, in order,
+        the mean and variance,  n is the number of samples and, out_feat is the number of out features.
+        """
+        output_mean = None
+        output_var = None
+
+        W_mean, W_var = self.generate_weight_distribution(self.W_logits)
+        b_mean, b_var = self.generate_weight_distribution(self.b_logits)
+
+        if self.in_feat_type == ValueTypes.REAL:
+            # transpose the input matrix to (in_feat x n)
+            input_values = x.transpose(0, 1)
+            # outputs are a tensor (out_feat x n)
+            output_mean = torch.mm(W_mean, input_values)
+            output_var = torch.mm(W_var, torch.pow(input_values, 2))
+
+        elif self.in_feat_type == ValueTypes.GAUSSIAN:
+            x_mean = x[:, 0, :]
+            x_var = x[:, 1, :]
+            # transpose the input matrices to (in_feat x n)
+            x_mean = x_mean.transpose(1, 0)
+            x_var = x_var.transpose(1, 0)
+            output_mean = torch.mm(W_mean, x_mean)
+            output_var = torch.mm(torch.pow(x_mean, 2), W_var) + torch.mm(x_var, torch.pow(W_mean, 2)) +\
+                torch.mm(x_var, W_var)
+        else:
+            raise ValueError(f"The type {self.in_feat_type} given for the input type of layer is invalid")
+        # need to return the matrix back to the original axis layout by transposing again
+        output_mean = output_mean.transpose(0, 1)
+        output_var = output_var.transpose(0, 1)
+
+        output_mean += b_mean
+        output_var += b_var
+
+        return torch.stack([output_mean, output_var], dim=1)
 
 
 class TernaryLinear(DiscreteLinear):
-    def __init__(self, input_features, output_features, init_weights):
+    def __init__(self, input_features, input_feature_type: ValueTypes, output_features, real_init_weights):
         """
         Discretizes the weights from a matrix with real weights based on the "probabilistic" method proposed in
         the paper (pg. 9, last paragraph)
-
-        :param real_weights: a (output_features x input_features) matrix with real weights
+        :param input_features: the number of inputs
+        :param input_feature_type: the type of the input (e.g. real, gaussian distribution)
+        :param output_features: the number of outputs
+        :param real_init_weights: the real initialization weights
         :return: a (num_discrete_values x output_features x input_features) with the probabilities
         """
-        super().__init__(input_features, output_features, init_weights, [-1, 0, 1])
+        super().__init__(input_features, input_feature_type, output_features, real_init_weights, [-1, 0, 1])
 
 
 if __name__ == "__main__":
-    test_weight_matrix = torch.tensor([[2.1, 0.3, -0.5, -2], [4., 0., 2., -1.]])
-    layer = DiscreteLinear(4, 2, [-1, 0, 1])
-    layer.discretize_weights_probabilistic(test_weight_matrix)
+    test_weight_matrix = torch.tensor([[2.1, 0.3, -0.5, -2], [4., 0., 2., -1.], [2.1, 0.3, -0.5, -2]])
+    test_bias_matrix = torch.tensor([[2.1, 0.3, -0.5]])
+    test_samples = torch.rand(10, 4).double()  # 10 samples, 4 in dimensions
+    layer = DiscreteLinear(4, ValueTypes.REAL, 3, test_weight_matrix, test_bias_matrix, [-2, -1, 0, 1, 2])
+    x = layer.forward(test_samples)
+
