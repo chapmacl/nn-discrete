@@ -49,7 +49,7 @@ class MnistPiTernaryTanh(torch.nn.Module):
         s14_l3_linear = TernaryLinear(64, ValueTypes.REAL, 512, real_model_params["L3_Linear_W"],
                                       real_model_params["L3_Linear_W"])
         s15_l3_repar = LocalReparametrization(10, ValueTypes.GAUSSIAN)
-        s16_l3_batchnorm = torch.nn.BatchNorm2d(512, momentum=0.1)
+        s16_l3_batchnorm = torch.nn.BatchNorm1d(512, momentum=0.1)
         s17_l3_tanh = torch.nn.Tanh()
 
         s19_l4_linear = TernaryLinear(512, ValueTypes.REAL, 10, real_model_params["L4_Linear_W"],
