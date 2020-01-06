@@ -24,7 +24,7 @@ class LocalReparametrization(nn.Module):
             x_mean = x[:, 0, :]
             x_var = x[:, 1, :]
             ndist = Normal(torch.tensor([0.]), torch.tensor([1.]))
-            samples_unit_gaussian = ndist.sample(sample_shape=x_mean.shape)
+            samples_unit_gaussian = ndist.sample(sample_shape=x_mean.shape).to(x.device)
             # an extra dimension is added when samples are generated we need to remove it
             samples_unit_gaussian = samples_unit_gaussian[:, :, 0]
 
