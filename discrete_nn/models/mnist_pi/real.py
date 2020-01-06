@@ -64,6 +64,7 @@ class MnistPiReal(torch.nn.Module):
         repr_dict["L3_Linear_b"] = internal_dict["netlayers.9.bias"].reshape(-1, 1)
         return repr_dict
 
+
 class DatasetMNIST(Dataset):
     """
     Dataset for pytorch's DataLoader
@@ -125,17 +126,25 @@ def train_model():
         # starting epochs evaluation
         net.eval()
         validation_losses = []
-
+        targets = []
+        predictions = []
         # disables gradient calculation since it is not needed
         with torch.no_grad():
             for batch_inx, (X, Y) in enumerate(validation_loader):
                 outputs = net(X)
                 loss = loss_fc(outputs, Y)
                 validation_losses.append(loss)
+
+                output_probs = torch.nn.functional.softmax(outputs, dim=1)
+                output_labels = output_probs.argmax(dim=1)
+                predictions += output_labels.tolist()
+                targets += Y.tolist()
+
         epochs_validation_error.append(torch.mean(torch.stack(validation_losses)))
         print(f"epoch {epoch_in + 1}/{num_epochs} "
               f"train loss: {epochs_train_error[-1]:.4f} / "
-              f"validation loss: {epochs_validation_error[-1]:.4f}")
+              f"validation loss: {epochs_validation_error[-1]:.4f}"
+              f"validation acc: {accuracy_score(targets, predictions)}")
 
         with open(os.path.join(model_path, "mnist_pi_real.pickle"), "wb") as f:
             pickle.dump(net, f)

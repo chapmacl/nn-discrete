@@ -31,23 +31,23 @@ class MnistPiTernaryTanh(torch.nn.Module):
         :param real_model_params: a dictionary containing the real weights of the pretrained model
         """
         super().__init__()
-        s1_l1_dropout = torch.nn.Dropout(p=0.2)
+        s1_l1_dropout = torch.nn.Dropout(p=0.1)
         s2_l1_linear = TernaryLinear(784, ValueTypes.REAL, 1200, real_model_params["L1_Linear_W"],
                                      real_model_params["L1_Linear_b"])
         s3_l1_repar = LocalReparametrization(1200, ValueTypes.GAUSSIAN) # outputs a value and not a dist.
         s4_l1_batchnorm = torch.nn.BatchNorm1d(1200, momentum=0.1)
         s5_l1_tanh = torch.nn.Tanh()
 
-        s6_l2_dropout = torch.nn.Dropout(p=0.4)
+        s6_l2_dropout = torch.nn.Dropout(p=0.2)
         s7_l2_linear = TernaryLinear(1200, ValueTypes.REAL, 1200, real_model_params["L2_Linear_W"],
                                      real_model_params["L2_Linear_W"])
         s8_l2_repar = LocalReparametrization(1200, ValueTypes.GAUSSIAN)  # outputs a value and not a dist.
         s9_l2_batchnorm = torch.nn.BatchNorm1d(1200, momentum=0.1)
         s10_l2_tanh = torch.nn.Tanh()
 
-        s6_l3_dropout = torch.nn.Dropout(p=0.4)
+        s6_l3_dropout = torch.nn.Dropout(p=0.3)
         s7_l3_linear = TernaryLinear(1200, ValueTypes.REAL, 10, real_model_params["L3_Linear_W"],
-                                     real_model_params["L3_Linear_W"])
+                                     real_model_params["L3_Linear_W"], normalize_activations=True)
         s8_l3_repar = LocalReparametrization(10, ValueTypes.GAUSSIAN)
         # defining all the network's layers
         self.netlayers = torch.nn.Sequential(
@@ -64,6 +64,12 @@ class MnistPiTernaryTanh(torch.nn.Module):
             s6_l3_dropout,
             s7_l3_linear,
             s8_l3_repar)  # last layer outputs the unnormalized loglikelihood used by the softmax later
+
+        """setting parameters of torch layers here"""
+        self.state_dict()['netlayers.3.weight'][:] = real_model_params["L1_BatchNorm_W"]
+        self.state_dict()['netlayers.3.bias'][:] = real_model_params["L1_BatchNorm_b"]
+        self.state_dict()['netlayers.8.weight'][:] = real_model_params["L2_BatchNorm_W"]
+        self.state_dict()['netlayers.8.bias'][:] = real_model_params["L2_BatchNorm_b"]
 
     def forward(self, x):
         # takes image vector
@@ -104,7 +110,7 @@ def train_model():
 
     net = MnistPiTernaryTanh(real_param)
     net = net.to(device)
-    optimizer = torch.optim.Adam(net.parameters(), lr=1e-3, weight_decay=1e-4)
+    optimizer = torch.optim.Adam(net.parameters(), lr=1e-3, weight_decay=1e-8)
 
     loss_fc = torch.nn.CrossEntropyLoss()
     # todo check regularization
@@ -118,7 +124,7 @@ def train_model():
         net.train()
         batch_loss_train = []
         # training part of epoch
-        for batch_inx, (X, Y) in tqdm.tqdm(enumerate(train_loader), desc="batch"):
+        for batch_inx, (X, Y) in enumerate(train_loader):
             optimizer.zero_grad()  # reset gradients from previous iteration
             # do forward pass
             net_output = net(X)
@@ -127,24 +133,31 @@ def train_model():
             # backward propagate loss
             loss.backward()
             optimizer.step()
-            tqdm.tqdm.write(f"loss {loss}")
             batch_loss_train.append(loss.item())
         epochs_train_error.append(np.mean(batch_loss_train))
 
         # starting epochs evaluation
         net.eval()
         validation_losses = []
-
+        targets = []
+        predictions = []
         # disables gradient calculation since it is not needed
         with torch.no_grad():
             for batch_inx, (X, Y) in enumerate(validation_loader):
                 outputs = net(X)
                 loss = loss_fc(outputs, Y)
                 validation_losses.append(loss)
+
+                output_probs = torch.nn.functional.softmax(outputs, dim=1)
+                output_labels = output_probs.argmax(dim=1)
+                predictions += output_labels.tolist()
+                targets += Y.tolist()
+
         epochs_validation_error.append(torch.mean(torch.stack(validation_losses)))
         print(f"epoch {epoch_in + 1}/{num_epochs} "
               f"train loss: {epochs_train_error[-1]:.4f} / "
-              f"validation loss: {epochs_validation_error[-1]:.4f}")
+              f"validation loss: {epochs_validation_error[-1]:.4f}"
+              f"validation acc: {accuracy_score(targets, predictions)}")
 
     with open(os.path.join(model_path, "mnist_pi_ternary_tanh.pickle"), "wb") as f:
         pickle.dump(net, f)
