@@ -32,21 +32,21 @@ class MnistPiTernaryTanh(torch.nn.Module):
         :param real_model_params: a dictionary containing the real weights of the pretrained model
         """
         super().__init__()
-        s2_l1_conv = torch.nn.Conv2d(28, 32, 5, stride=1)
+        s2_l1_conv = torch.nn.Conv2d(1, 32, 5, stride=1)
         s3_l1_repar = LocalReparametrization(32, ValueTypes.GAUSSIAN)  # outputs a value and not a dist.
-        s4_l1_pool = torch.nn.MaxPool2d(32, stride=2)
+        s4_l1_pool = torch.nn.MaxPool2d(2)
         s5_l1_batchnorm = torch.nn.BatchNorm2d(32, momentum=0.1)
         s6_l1_tanh = torch.nn.Tanh()
 
         s7_l2_dropout = torch.nn.Dropout(p=0.2)
         s8_l2_conv = torch.nn.Conv2d(32, 64, 5, stride=1)
         s9_l2_repar = LocalReparametrization(64, ValueTypes.GAUSSIAN)  # outputs a value and not a dist.
-        s10_l2_pool = torch.nn.MaxPool2d(64, stride=2)
+        s10_l2_pool = torch.nn.MaxPool2d(2)
         s11_l2_batchnorm = torch.nn.BatchNorm2d(64, momentum=0.1)
         s12_l2_tanh = torch.nn.Tanh()
 
         s13_l3_dropout = torch.nn.Dropout(p=0.3)
-        s14_l3_linear = TernaryLinear(64, ValueTypes.REAL, 512, real_model_params["L3_Linear_W"],
+        s14_l3_linear = TernaryLinear(1024, ValueTypes.REAL, 512, real_model_params["L3_Linear_W"],
                                       real_model_params["L3_Linear_W"])
         s15_l3_repar = LocalReparametrization(10, ValueTypes.GAUSSIAN)
         s16_l3_batchnorm = torch.nn.BatchNorm1d(512, momentum=0.1)
