@@ -12,13 +12,14 @@ from sklearn.metrics import accuracy_score
 
 from discrete_nn.dataset.mnist import MNIST
 from discrete_nn.settings import model_path
+from discrete_nn.layers.Flatten import Flatten
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 if device == "cuda:0":
     torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
 
-class MnistPiReal(torch.nn.Module):
+class MnistReal(torch.nn.Module):
     """
     Real valued (non convolutionary) network for the mnist dataset
     """
@@ -58,16 +59,16 @@ class MnistPiReal(torch.nn.Module):
         internal_dict = {name: value for name, value in self.named_parameters()}
 
         repr_dict = dict()
-        repr_dict["L1_Conv_W"] = internal_dict["netlayers.1.weight"]
-        repr_dict["L1_BatchNorm_W"] = internal_dict["netlayers.2.weight"]
-        repr_dict["L1_BatchNorm_b"] = internal_dict["netlayers.2.bias"]
-        repr_dict["L2_Conv_W"] = internal_dict["netlayers.4.weight"]
-        repr_dict["L2_BatchNorm_W"] = internal_dict["netlayers.5.weight"]
-        repr_dict["L2_BatchNorm_b"] = internal_dict["netlayers.5.bias"]
-        repr_dict["L3_Linear_W"] = internal_dict["netlayers.10.weight"]
-        repr_dict["L3_Linear_b"] = internal_dict["netlayers.10.bias"].reshape(-1, 1)
-        repr_dict["L4_Linear_W"] = internal_dict["netlayers.13.weight"]
-        repr_dict["L4_Linear_b"] = internal_dict["netlayers.13.bias"].reshape(-1, 1)
+        repr_dict["L1_Conv_W"] = internal_dict["netlayers.0.weight"]
+        repr_dict["L1_BatchNorm_W"] = internal_dict["netlayers.1.weight"]
+        repr_dict["L1_BatchNorm_b"] = internal_dict["netlayers.1.bias"]
+        repr_dict["L2_Conv_W"] = internal_dict["netlayers.5.weight"]
+        repr_dict["L2_BatchNorm_W"] = internal_dict["netlayers.6.weight"]
+        repr_dict["L2_BatchNorm_b"] = internal_dict["netlayers.6.bias"]
+        repr_dict["L3_Linear_W"] = internal_dict["netlayers.11.weight"]
+        repr_dict["L3_Linear_b"] = internal_dict["netlayers.11.bias"].reshape(-1, 1)
+        repr_dict["L4_Linear_W"] = internal_dict["netlayers.14.weight"]
+        repr_dict["L4_Linear_b"] = internal_dict["netlayers.14.bias"].reshape(-1, 1)
         return repr_dict
 
 
@@ -90,15 +91,6 @@ class DatasetMNIST(Dataset):
         return self.x[item_inx], self.y[item_inx]
 
 
-class Flatten(torch.nn.Module):
-
-    def __init__(self):
-        super(Flatten, self).__init__()
-
-    def forward(self, x):
-        shape = torch.prod(torch.tensor(x.shape[1:])).item()
-        return x.view(-1, shape)
-
 
 def train_model():
     # basic dataset holder
@@ -112,14 +104,14 @@ def train_model():
     test_loader = DataLoader(dataset=DatasetMNIST(mnist.x_test, mnist.y_test), batch_size=batch_size,
                              shuffle=False)
 
-    net = MnistPiReal()
+    net = MnistReal()
     net = net.to(device)
     optimizer = torch.optim.Adam(net.parameters(), lr=1e-3, weight_decay=1e-4)
 
     loss_fc = torch.nn.CrossEntropyLoss()
     # todo check regularization
 
-    num_epochs = 200
+    num_epochs = 20
 
     epochs_train_error = []
     epochs_validation_error = []
@@ -155,7 +147,7 @@ def train_model():
               f"train loss: {epochs_train_error[-1]:.4f} / "
               f"validation loss: {epochs_validation_error[-1]:.4f}")
 
-        with open(os.path.join(model_path, "mnist_pi_real.pickle"), "wb") as f:
+        with open(os.path.join(model_path, "mnist_conv_real.pickle"), "wb") as f:
             pickle.dump(net, f)
 
     # test network
@@ -180,5 +172,5 @@ def train_model():
 
 if __name__ == "__main__":
     print('Using device:', device)
-    print(MnistPiReal())
-    train_model()
+    print(MnistReal())
+    #train_model()

@@ -15,6 +15,8 @@ from discrete_nn.settings import model_path
 from discrete_nn.layers.types import ValueTypes
 from discrete_nn.layers.linear import TernaryLinear
 from discrete_nn.layers.local_reparametrization import LocalReparametrization
+from discrete_nn.models.mnist.real_conv import MnistReal
+from discrete_nn.layers.Flatten import Flatten
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 if device == "cuda:0":
@@ -91,6 +93,7 @@ class DatasetMNIST(Dataset):
     def __init__(self, x, y):
         self.x = torch.from_numpy(x) * 2 - 1
         self.y = torch.from_numpy(y).long()
+        self.x = self.x.reshape((self.x.shape[0], 1, 28, 28))
         self.x = self.x.to(device)
         self.y = self.y.to(device)
 
@@ -113,9 +116,9 @@ def train_model():
     test_loader = DataLoader(dataset=DatasetMNIST(mnist.x_test, mnist.y_test), batch_size=batch_size,
                              shuffle=False)
 
-    with open(model_path + "/mnist_real_param.pickle", "rb") as f:
-        real_param = pickle.load(f)
-
+    with open(model_path + "/mnist_conv_real.pickle", "rb") as f:
+        real_model = pickle.load(f)
+        real_param = real_model.training_parameters()
     net = MnistPiTernaryTanh(real_param)
     net = net.to(device)
     optimizer = torch.optim.Adam(net.parameters(), lr=1e-3, weight_decay=1e-4)
