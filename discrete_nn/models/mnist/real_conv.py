@@ -173,4 +173,4 @@ def train_model():
 if __name__ == "__main__":
     print('Using device:', device)
     print(MnistReal())
-    #train_model()
+    train_model()
