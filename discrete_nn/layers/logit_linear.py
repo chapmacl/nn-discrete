@@ -8,7 +8,7 @@ from torch import Tensor
 import torch
 
 
-class DiscreteLinear(nn.Module):
+class LogitLinear(nn.Module):
     def __init__(self, input_features, input_feature_type: ValueTypes, output_features, initialization_weights,
                  initialization_bias, discretized_values, normalize_activations: bool = False):
         """
@@ -36,6 +36,13 @@ class DiscreteLinear(nn.Module):
         self.b_logits = torch.nn.Parameter(self.discretize_weights_probabilistic(initialization_bias),
                                            requires_grad=True)
         self.normalize_activations = normalize_activations
+
+    def sample_discrete_weights(self):
+        """ sample a discrete weight from the weights of the layer based on the weight distributions"""
+        probabilities_w = self.generate_weight_probabilities(self.W_logits)
+        probabilities_b = self.generate_weight_probabilities(self.b_logits)
+
+
 
     def discretize_weights_shayer(self, real_weights: Tensor):
         """
@@ -164,19 +171,28 @@ class DiscreteLinear(nn.Module):
 
         return shayers_discretized
 
-    def generate_weight_distribution(self, logit_weights):
+    def generate_weight_probabilities(self, logit_weights):
+        """
+        calculates the probabilities of all discrete weights for the logits provided
+
+        :param logit_weights: a tensor with dimensions (discretization levels x output features x input_features)
+        with the discrete distribution as logits
+        :return:  a tensor with dimensions (discretization levels x output features x input_features)
+        with the discrete distribution as probabilities
+        """
+        weight_probabilities = torch.exp(logit_weights)
+        weight_probabilities = weight_probabilities / weight_probabilities.sum(dim=0)
+        return weight_probabilities
+
+    def get_gaussian_dist_parameters(self, logit_weights):
         """
         Fits a gaussian distribution to the logits in logit_weights.
-        :param logit_weights: a tensor with dimensions (dicretization levels x output features x input_features)
+        :param logit_weights: a tensor with dimensions (discretization levels x output features x input_features)
         with the discrete distribution as logits
         :return: a tuple with the means of the gaussian distributions as a (output features x input_features) tensor
         and a the standard deviations in a tensor of the same format
         """
-
-        # create placeholder tensors for mean and stddevs
-        weight_probabilities = torch.exp(logit_weights)
-        weight_probabilities = weight_probabilities / weight_probabilities.sum(dim=0)
-
+        weight_probabilities = self.generate_weight_probabilities(logit_weights)
         discrete_val_tensor = torch.zeros_like(logit_weights)
         for inx, discrete_weight in enumerate(self.discrete_values):
             discrete_val_tensor[inx, :, :] = discrete_weight
@@ -207,8 +223,8 @@ class DiscreteLinear(nn.Module):
         output_mean = None
         output_var = None
 
-        w_mean, w_var = self.generate_weight_distribution(self.W_logits)
-        b_mean, b_var = self.generate_weight_distribution(self.b_logits)
+        w_mean, w_var = self.get_gaussian_dist_parameters(self.W_logits)
+        b_mean, b_var = self.get_gaussian_dist_parameters(self.b_logits)
         # print(f"maximum abs logit weight {self.W_logits.abs().max()}")
         """
         print(f"maximum logit weight {self.W_logits.max()}")
@@ -249,7 +265,7 @@ class DiscreteLinear(nn.Module):
         return torch.stack([output_mean, output_var], dim=1)
 
 
-class TernaryLinear(DiscreteLinear):
+class TernaryLinear(LogitLinear):
     def __init__(self, input_features: int, input_feature_type: ValueTypes, output_features: int, real_init_weights,
                  real_init_bias, normalize_activations: bool = False):
         """
@@ -273,6 +289,6 @@ if __name__ == "__main__":
     test_weight_matrix = torch.tensor([[2.1, 30, -0.5, -2], [4., 0., 2., -1.], [2.1, 0.3, -0.5, -2]])
     test_bias_matrix = torch.tensor([[2.1, 0.3, -0.5]])
     test_samples = torch.rand(10, 4).double()  # 10 samples, 4 in dimensions
-    layer = DiscreteLinear(4, ValueTypes.REAL, 3, test_weight_matrix, test_bias_matrix, [-2, -1, 0, 1, 2])
+    layer = LogitLinear(4, ValueTypes.REAL, 3, test_weight_matrix, test_bias_matrix, [-2, -1, 0, 1, 2])
     x = layer.forward(test_samples)
     print(x.shape)

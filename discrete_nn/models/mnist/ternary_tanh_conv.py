@@ -13,7 +13,7 @@ from sklearn.metrics import accuracy_score
 from discrete_nn.dataset.mnist import MNIST
 from discrete_nn.settings import model_path
 from discrete_nn.layers.types import ValueTypes
-from discrete_nn.layers.linear import TernaryLinear
+from discrete_nn.layers.logit_linear import TernaryLinear
 from discrete_nn.layers.local_reparametrization import LocalReparametrization
 from discrete_nn.models.mnist.real_conv import MnistReal
 from discrete_nn.layers.Flatten import Flatten
