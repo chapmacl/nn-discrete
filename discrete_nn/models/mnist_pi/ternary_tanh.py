@@ -115,7 +115,7 @@ def train_model():
     loss_fc = torch.nn.CrossEntropyLoss()
     # todo check regularization
 
-    num_epochs = 200
+    num_epochs = 100
 
     epochs_train_error = []
     epochs_validation_error = []

@@ -16,7 +16,7 @@ class LogitLinear(nn.Module):
         :param input_features: the input dimension
         :param input_feature_type: the type of the input (e.g. real, gaussian distribution)
         :param output_features: the output dimension (# of neurons in layer)
-        :param initialization_weights: a tensor (output_features x input_features) with pre trained real weights to be
+        :param initialization_weights: a tensor (output_features x input_features) with pre trained real weights to b/e
         used for initializing the discrete ones
         :param initialization_bias: a tensor (output_features x 1) with pre trained real weights for bias to be
         used for initializing the discrete ones
