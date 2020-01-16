@@ -102,7 +102,7 @@ def train_model():
     loss_fc = torch.nn.CrossEntropyLoss()
     # todo check regularization
 
-    num_epochs = 200
+    num_epochs = 2
 
     epochs_train_error = []
     epochs_validation_error = []
@@ -146,8 +146,14 @@ def train_model():
               f"validation loss: {epochs_validation_error[-1]:.4f}"
               f"validation acc: {accuracy_score(targets, predictions)}")
 
-        """with open(os.path.join(model_path, "mnist_pi_real.pickle"), "wb") as f:
+        """with open(os.path.join(model_path, "mnist_pi_manual.pickle"), "wb") as f:
             pickle.dump(net, f)"""
+
+
+    # Manually adjust the weights
+    modules = net._modules["netlayers"]._modules
+    for mod in modules:
+        print(mod.items())
 
     # test network
     test_losses = []
