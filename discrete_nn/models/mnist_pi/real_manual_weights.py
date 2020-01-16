@@ -150,10 +150,6 @@ def train_model():
             pickle.dump(net, f)"""
 
 
-    # Manually adjust the weights
-    modules = net._modules["netlayers"]._modules
-    for mod in modules:
-        print(mod.items())
 
     # test network
     test_losses = []
@@ -174,6 +170,49 @@ def train_model():
     print(f"test accuracy : {accuracy_score(targets, predictions)}")
     print(f"test cross entropy loss:{np.mean(test_losses)}")
 
+    # Manually adjust the weights
+    modules = net._modules["netlayers"]._modules
+    layerIndices = ["1", "5", "9"]
+    for mod in layerIndices:
+        layer = modules[str(mod)]
+        if hasattr(layer, "weight"):
+            data = layer.weight
+            min = torch.min(data)
+            max = torch.max(data)
+            for x in range(0, len(data)):
+                normalized = 0.2 * ((data[x] - min) / (max - min)) - 0.1
+                """if normalized.ndim == 0:
+                    print("problem")
+                for y in range(0, len(normalized)):
+                    number = normalized[y]
+                    if number < -0.333:
+                        normalized[y] = -1
+                    elif number < 0.333:
+                        normalized[y] = 0
+                    else:
+                        normalized[y] = 1"""
+
+                data[x] = normalized
+            layer.weight.data = data
+
+    # test network
+    test_losses = []
+    targets = []
+    predictions = []
+    # disables gradient calculation since it is not needed
+    with torch.no_grad():
+        for batch_inx, (X, Y) in enumerate(test_loader):
+            outputs = net(X)
+            loss = loss_fc(outputs, Y)
+            test_losses.append(loss.item())
+
+            output_probs = torch.nn.functional.softmax(outputs, dim=1)
+            output_labels = output_probs.argmax(dim=1)
+            predictions += output_labels.tolist()
+            targets += Y.tolist()
+
+    print(f"test accuracy : {accuracy_score(targets, predictions)}")
+    print(f"test cross entropy loss:{np.mean(test_losses)}")
 
 if __name__ == "__main__":
 
