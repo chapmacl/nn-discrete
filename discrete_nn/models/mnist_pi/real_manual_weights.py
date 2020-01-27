@@ -84,6 +84,22 @@ class DatasetMNIST(Dataset):
 
 
 def train_model():
+    def discretize(net):
+        # Manually adjust the weights
+        modules = net._modules["netlayers"]._modules
+        layerIndices = ["1", "5", "9"]
+        for mod in layerIndices:
+            layer = modules[str(mod)]
+            if hasattr(layer, "weight"):
+                data = layer.weight
+
+                for x in range(0, len(data)):
+                    min = torch.min(data[x])
+                    max = torch.max(data[x])
+                    data[x] = 2 * ((data[x] - min) / (max - min)) - 1
+                    data[x] = torch.round(data[x])
+
+
     # basic dataset holder
     mnist = MNIST()
     # creates the dataloader for pytorch
@@ -102,12 +118,13 @@ def train_model():
     loss_fc = torch.nn.CrossEntropyLoss()
     # todo check regularization
 
-    num_epochs = 5
+    num_epochs = 200
 
     epochs_train_error = []
     epochs_validation_error = []
 
     for epoch_in in range(num_epochs):
+
         net.train()
         batch_loss_train = []
         # training part of epoch
@@ -121,6 +138,7 @@ def train_model():
             loss.backward()
             optimizer.step()
             batch_loss_train.append(loss.item())
+
         epochs_train_error.append(np.mean(batch_loss_train))
 
         # starting epochs evaluation
@@ -130,11 +148,13 @@ def train_model():
         predictions = []
         # disables gradient calculation since it is not needed
         with torch.no_grad():
+            discretize(net)
+
             for batch_inx, (X, Y) in enumerate(validation_loader):
+
                 outputs = net(X)
                 loss = loss_fc(outputs, Y)
                 validation_losses.append(loss)
-
                 output_probs = torch.nn.functional.softmax(outputs, dim=1)
                 output_labels = output_probs.argmax(dim=1)
                 predictions += output_labels.tolist()
@@ -146,8 +166,8 @@ def train_model():
               f"validation loss: {epochs_validation_error[-1]:.4f}"
               f"validation acc: {accuracy_score(targets, predictions)}")
 
-        """with open(os.path.join(model_path, "mnist_pi_manual.pickle"), "wb") as f:
-            pickle.dump(net, f)"""
+        with open(os.path.join(model_path, "mnist_pi_manual.pickle"), "wb") as f:
+            pickle.dump(net, f)
 
 
 
@@ -170,24 +190,7 @@ def train_model():
     print(f"test accuracy : {accuracy_score(targets, predictions)}")
     print(f"test cross entropy loss:{np.mean(test_losses)}")
 
-    # Manually adjust the weights
-    modules = net._modules["netlayers"]._modules
-    layerIndices = ["1", "5", "9"]
-    for mod in layerIndices:
-        layer = modules[str(mod)]
-        if hasattr(layer, "weight"):
-            data = layer.weight
-
-            for x in range(0, len(data)):
-                min = torch.min(data[x])
-                max = torch.max(data[x])
-                normalized = 2 * ((data[x] - min) / (max - min)) - 1
-                if normalized.ndim == 0:
-                    print("problem")
-                normalized = torch.round(normalized)
-
-                data[x] = normalized
-            layer.weight.data = data
+    discretize(net)
 
     # test network
     test_losses = []
