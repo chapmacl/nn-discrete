@@ -102,7 +102,7 @@ def train_model():
     loss_fc = torch.nn.CrossEntropyLoss()
     # todo check regularization
 
-    num_epochs = 2
+    num_epochs = 5
 
     epochs_train_error = []
     epochs_validation_error = []
@@ -177,20 +177,14 @@ def train_model():
         layer = modules[str(mod)]
         if hasattr(layer, "weight"):
             data = layer.weight
-            min = torch.min(data)
-            max = torch.max(data)
+
             for x in range(0, len(data)):
-                normalized = 0.2 * ((data[x] - min) / (max - min)) - 0.1
-                """if normalized.ndim == 0:
+                min = torch.min(data[x])
+                max = torch.max(data[x])
+                normalized = 2 * ((data[x] - min) / (max - min)) - 1
+                if normalized.ndim == 0:
                     print("problem")
-                for y in range(0, len(normalized)):
-                    number = normalized[y]
-                    if number < -0.333:
-                        normalized[y] = -1
-                    elif number < 0.333:
-                        normalized[y] = 0
-                    else:
-                        normalized[y] = 1"""
+                normalized = torch.round(normalized)
 
                 data[x] = normalized
             layer.weight.data = data
