@@ -118,7 +118,7 @@ def train_model():
 
     with open(model_path + "/mnist_conv_real.pickle", "rb") as f:
         real_model = pickle.load(f)
-        real_param = real_model.training_parameters()
+        real_param = real_model.get_training_parameters()
     net = MnistPiTernaryTanh(real_param)
     net = net.to(device)
     optimizer = torch.optim.Adam(net.parameters(), lr=1e-3, weight_decay=1e-4)

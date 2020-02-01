@@ -18,13 +18,19 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 if device == "cuda:0":
     torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
+
 class MnistPiReal(torch.nn.Module):
     """
     Real valued (non convolutionary) network for the mnist dataset
     """
 
-    def __init__(self):
+    def __init__(self, weights = None):
+        """
+
+        :param weights: if not none contains the weighs for the networks layers
+        """
         super().__init__()
+        self.loss_fc = torch.nn.CrossEntropyLoss()
         # defining all the network's layers
         self.netlayers = torch.nn.Sequential(
 
@@ -47,7 +53,20 @@ class MnistPiReal(torch.nn.Module):
         # takes image vector
         return self.netlayers(x)
 
-    def training_parameters(self):
+    def set_training_parameters(self, param_dict):
+        self.state_dict()["netlayers.1.weight"][:] = param_dict["L1_Linear_W"]
+        self.state_dict()["netlayers.1.bias"][:] = param_dict["L1_Linear_b"].reshape(-1)
+        self.state_dict()['netlayers.2.weight'][:] = param_dict["L1_BatchNorm_W"]
+        self.state_dict()['netlayers.2.bias'][:] = param_dict["L1_BatchNorm_b"]
+        self.state_dict()["netlayers.5.weight"][:] = param_dict["L2_Linear_W"]
+        self.state_dict()["netlayers.5.bias"][:] = param_dict["L2_Linear_b"].reshape(-1)
+        self.state_dict()['netlayers.6.weight'][:] = param_dict["L2_BatchNorm_W"]
+        self.state_dict()['netlayers.6.bias'][:] = param_dict["L2_BatchNorm_b"]
+        self.state_dict()["netlayers.9.weight"][:] = param_dict["L3_Linear_W"]
+        self.state_dict()["netlayers.9.bias"][:] = param_dict["L3_Linear_b"].reshape(-1)
+        return
+
+    def get_training_parameters(self):
         """:returns a dictionary with the trainable parameters"""
         internal_dict = {name: value for name, value in self.named_parameters()}
 
@@ -64,6 +83,25 @@ class MnistPiReal(torch.nn.Module):
         repr_dict["L3_Linear_b"] = internal_dict["netlayers.9.bias"].reshape(-1, 1)
         return repr_dict
 
+    def evaluate(self, dataset_generator):
+        self.eval()
+        validation_losses = []
+        targets = []
+        predictions = []
+        # disables gradient calculation since it is not needed
+        with torch.no_grad():
+            for batch_inx, (X, Y) in enumerate(dataset_generator):
+                outputs = self(X)
+                loss = self.loss_fc(outputs, Y)
+                validation_losses.append(loss)
+
+                output_probs = torch.nn.functional.softmax(outputs, dim=1)
+                output_labels = output_probs.argmax(dim=1)
+                predictions += output_labels.tolist()
+                targets += Y.tolist()
+        eval_loss = torch.mean(torch.stack(validation_losses))
+        eval_acc = accuracy_score(targets, predictions)
+        return eval_loss, eval_acc
 
 class DatasetMNIST(Dataset):
     """

@@ -15,10 +15,12 @@ from discrete_nn.settings import model_path
 from discrete_nn.layers.types import ValueTypes
 from discrete_nn.layers.logit_linear import TernaryLinear
 from discrete_nn.layers.local_reparametrization import LocalReparametrization
+from discrete_nn.models.mnist_pi.real import MnistPiReal
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 if device == "cuda:0":
     torch.set_default_tensor_type(torch.cuda.FloatTensor)
+
 
 class MnistPiTernaryTanh(torch.nn.Module):
     """
@@ -70,10 +72,61 @@ class MnistPiTernaryTanh(torch.nn.Module):
         self.state_dict()['netlayers.3.bias'][:] = real_model_params["L1_BatchNorm_b"]
         self.state_dict()['netlayers.8.weight'][:] = real_model_params["L2_BatchNorm_W"]
         self.state_dict()['netlayers.8.bias'][:] = real_model_params["L2_BatchNorm_b"]
-
+        self.loss_fc = torch.nn.CrossEntropyLoss()
     def forward(self, x):
         # takes image vector
         return self.netlayers(x)
+
+    def generate_discrete_networks(self, method: str) -> MnistPiReal:
+        """
+
+        :param method: sample or argmax
+        :return:
+        """
+        # state dicts
+
+        l1_layer: TernaryLinear = self.netlayers[1]
+        l1_sampled_w, l1_sampled_b = l1_layer.generate_discrete_network(method)
+        l2_layer: TernaryLinear = self.netlayers[5]
+        l2_sampled_w, l2_sampled_b = l2_layer.generate_discrete_network(method)
+        l3_layer: TernaryLinear = self.netlayers[9]
+        l3_sampled_w, l3_sampled_b = l3_layer.generate_discrete_network(method)
+        state_dict = {
+            "L1_Linear_W": l1_sampled_w,
+            "L1_Linear_b": l1_sampled_b,
+            "L1_BatchNorm_W": self.state_dict()['netlayers.3.weight'],
+            "L1_BatchNorm_b": self.state_dict()['netlayers.3.bias'],
+            "L2_Linear_W": l2_sampled_w,
+            "L2_Linear_b": l2_sampled_b,
+            "L2_BatchNorm_W": self.state_dict()['netlayers.8.weight'],
+            "L2_BatchNorm_b": self.state_dict()['netlayers.8.bias'],
+            "L3_Linear_W": l3_sampled_w,
+            "L3_Linear_b": l3_sampled_b
+        }
+
+        real_net = MnistPiReal()
+        real_net.set_training_parameters(state_dict)
+        return real_net
+
+    def evaluate(self, dataset_generator):
+        self.eval()
+        validation_losses = []
+        targets = []
+        predictions = []
+        # disables gradient calculation since it is not needed
+        with torch.no_grad():
+            for batch_inx, (X, Y) in enumerate(dataset_generator):
+                outputs = self(X)
+                loss = self.loss_fc(outputs, Y)
+                validation_losses.append(loss)
+
+                output_probs = torch.nn.functional.softmax(outputs, dim=1)
+                output_labels = output_probs.argmax(dim=1)
+                predictions += output_labels.tolist()
+                targets += Y.tolist()
+        eval_loss = torch.mean(torch.stack(validation_losses))
+        eval_acc = accuracy_score(targets, predictions)
+        return eval_loss, eval_acc
 
 class DatasetMNIST(Dataset):
     """
@@ -93,30 +146,10 @@ class DatasetMNIST(Dataset):
         return self.x[item_inx], self.y[item_inx]
 
 
-def train_model():
-    # basic dataset holder
-    mnist = MNIST()
-    # creates the dataloader for pytorch
-    batch_size = 100
-    train_loader = DataLoader(dataset=DatasetMNIST(mnist.x_train, mnist.y_train), batch_size=batch_size,
-                              shuffle=True)
-    validation_loader = DataLoader(dataset=DatasetMNIST(mnist.x_val, mnist.y_val), batch_size=batch_size,
-                                   shuffle=False)
-    test_loader = DataLoader(dataset=DatasetMNIST(mnist.x_test, mnist.y_test), batch_size=batch_size,
-                             shuffle=False)
-
-    with open(model_path+"/mnist_real_param.pickle", "rb") as f:
-        real_param = pickle.load(f)
-
+def train_logit_model(train_loader, validation_loader, test_loader, num_epochs, real_param) -> MnistPiTernaryTanh:
     net = MnistPiTernaryTanh(real_param)
     net = net.to(device)
     optimizer = torch.optim.Adam(net.parameters(), lr=1e-3, weight_decay=1e-8)
-
-    loss_fc = torch.nn.CrossEntropyLoss()
-    # todo check regularization
-
-    num_epochs = 100
-
     epochs_train_error = []
     epochs_validation_error = []
 
@@ -129,7 +162,7 @@ def train_model():
             # do forward pass
             net_output = net(X)
             # compute loss
-            loss = loss_fc(net_output, Y)
+            loss = net.loss_fc(net_output, Y)
             # backward propagate loss
             loss.backward()
             optimizer.step()
@@ -145,7 +178,7 @@ def train_model():
         with torch.no_grad():
             for batch_inx, (X, Y) in enumerate(validation_loader):
                 outputs = net(X)
-                loss = loss_fc(outputs, Y)
+                loss = net.loss_fc(outputs, Y)
                 validation_losses.append(loss)
 
                 output_probs = torch.nn.functional.softmax(outputs, dim=1)
@@ -180,9 +213,31 @@ def train_model():
 
     print(f"test accuracy : {accuracy_score(targets, predictions)}")
     print(f"test cross entropy loss:{np.mean(test_losses)}")
-
+    return net
 
 if __name__ == "__main__":
+    batch_size = 100
+    # basic dataset holder
+    mnist = MNIST()
+    # creates the dataloader for pytorch
+
+    train_loader = DataLoader(dataset=DatasetMNIST(mnist.x_train, mnist.y_train), batch_size=batch_size,
+                              shuffle=True)
+    validation_loader = DataLoader(dataset=DatasetMNIST(mnist.x_val, mnist.y_val), batch_size=batch_size,
+                                   shuffle=False)
+    test_loader = DataLoader(dataset=DatasetMNIST(mnist.x_test, mnist.y_test), batch_size=batch_size,
+                             shuffle=False)
 
     print('Using device:', device)
-    train_model()
+    with open(model_path+"/mnist_real_param.pickle", "rb") as f:
+        real_param = pickle.load(f)
+    num_epochs_logits = 5
+    logit_net = train_logit_model(train_loader, validation_loader, test_loader, num_epochs_logits, real_param)
+
+    #with open(model_path+"/mnist_pi_ternary_tanh.pickle", "rb") as f:
+    #    logit_net: MnistPiTernaryTanh = pickle.load(f)
+
+    # discretizing and evaluatin
+    discrete_net = logit_net.generate_discrete_networks("sample")
+    test_loss, test_acc = discrete_net.evaluate(test_loader)
+    print(f"test_loss: {test_loss}, test_acc; {test_acc}")

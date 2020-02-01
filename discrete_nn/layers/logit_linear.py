@@ -5,6 +5,7 @@ from discrete_nn.layers.types import ValueTypes
 
 from torch import nn
 from torch import Tensor
+from torch.distributions import Multinomial
 import torch
 
 
@@ -29,20 +30,66 @@ class LogitLinear(nn.Module):
         self.in_feat_type = input_feature_type
         self.ou_feat = output_features
         self.discrete_values = sorted(discretized_values)
-        # todo what about bias?
+        self.normalize_activations = normalize_activations
         # these are the tunable parameters
         self.W_logits = torch.nn.Parameter(self.discretize_weights_probabilistic(initialization_weights),
                                            requires_grad=True)
         self.b_logits = torch.nn.Parameter(self.discretize_weights_probabilistic(initialization_bias),
                                            requires_grad=True)
-        self.normalize_activations = normalize_activations
 
-    def sample_discrete_weights(self):
-        """ sample a discrete weight from the weights of the layer based on the weight distributions"""
+    def generate_discrete_network(self, method:str = "sample"):
+        """ generates discrete weights from the weights of the layer based on the weight distributions
+
+        :param method: the method to use to generate the discrete weights. Either argmax or sample
+
+        :returs: tuple (sampled_w, sampled_b) where sampled_w and sampled_b are tensors of the shapes
+        (output_features x input_features) and (output_features x 1)
+        """
         probabilities_w = self.generate_weight_probabilities(self.W_logits)
         probabilities_b = self.generate_weight_probabilities(self.b_logits)
 
+        # logit probabilities must be in inner dimension for torch.distribution.Multinomial
+        probabilities_w = probabilities_w.transpose(0, 1).transpose(1, 2)
+        # stepped transpose bc we need to keep the order of the other dimensions
+        probabilities_b = probabilities_b.transpose(0, 1).transpose(1, 2)
+        discrete_values_tensor = torch.tensor(self.discrete_values).double()
+        if method == "sample":
+            m_w = Multinomial(probs=probabilities_w)
+            m_b = Multinomial(probs=probabilities_b)
+            # this is a output_features x input_features x discretization_levels mask
+            sampled_w = m_w.sample()
+            sampled_b = m_b.sample()
 
+            if torch.all(sampled_b.sum(dim=2) != 1):
+                raise ValueError("sampled mask for bias does not sum to 1")
+            if torch.all(sampled_w.sum(dim=2) != 1):
+                raise ValueError("sampled mask for weights does not sum to 1")
+
+            # need to generate the discrete weights from the masks
+
+            sampled_w = torch.matmul(sampled_w, discrete_values_tensor)
+            sampled_b = torch.matmul(sampled_b, discrete_values_tensor)
+        elif method == "argmax":
+            # returns a (out_feat x in_feat) matrix where the values correspond to the index of the discretized value
+            # with the largest probability
+            argmax_w = torch.argmax(probabilities_w, dim=2)
+            argmax_b = torch.argmax(probabilities_b, dim=2)
+            # creating placeholder for discrete weights
+            sampled_w = torch.zeros_like(argmax_w)
+            sampled_b = torch.zeros_like(argmax_b)
+            sampled_w[:] = discrete_values_tensor[argmax_w[:]]
+            sampled_b[:] = discrete_values_tensor[argmax_b[:]]
+
+        else:
+            raise ValueError(f"Invalid method {method} for layer discretization")
+
+        # sanity checks
+        if sampled_w.shape != (probabilities_w.shape[0], probabilities_w.shape[1]):
+            raise ValueError("sampled probability mask for weights does not match expected shape")
+        if sampled_b.shape != (probabilities_b.shape[0], probabilities_b.shape[1]):
+            raise ValueError("sampled probability mask for bias does not match expected shape")
+
+        return sampled_w, sampled_b
 
     def discretize_weights_shayer(self, real_weights: Tensor):
         """
@@ -137,19 +184,6 @@ class LogitLinear(nn.Module):
 
             return cdf
 
-        # todo handle weights of different signs separetely?
-        """
-        discretized_weights = torch.zeros_like(real_weights)
-        # we apply this separately to positive and negative weights to preserve the sign
-        negative_discrete_weights = [weight for weight in self.discrete_values if weight < 0]
-        positive_discrete_weights = [weight for weight in self.discrete_values if weight >= 0]
-    
-        # normalize positive weights
-        # scaling to unit interval
-        discretized_weights[real_weights >= 0] = empirical_cdf(real_weights[real_weights >= 0])
-        
-        delta_w_positive = positive_discrete_weights[-1] - 
-        """
         delta_w = self.discrete_values[1] - self.discrete_values[0]
 
         # compute cdf separately for positive and negative weights
@@ -199,16 +233,9 @@ class LogitLinear(nn.Module):
         discrete_val_tensor.requires_grad = True
         weight_mean = discrete_val_tensor * weight_probabilities
         weight_mean = weight_mean.sum(dim=0)
-        # for inx, discrete_weight in enumerate(self.discrete_values):
-        # weight prob * weight value
-        #    weight_mean += weight_probabilities[inx, :, :] * discrete_weight
 
         weight_var = weight_probabilities * torch.pow(discrete_val_tensor - weight_mean, 2)
         weight_var = weight_var.sum(dim=0)
-        # for inx, discrete_weight in enumerate(self.discrete_values):
-        #    # weight prob * (weight value - mean)^2
-        #    weight_var += weight_probabilities[inx, :, :] * torch.pow(discrete_weight - weight_mean, 2)
-
         return weight_mean, weight_var
 
     def forward(self, x: torch.Tensor):
@@ -226,13 +253,6 @@ class LogitLinear(nn.Module):
         w_mean, w_var = self.get_gaussian_dist_parameters(self.W_logits)
         b_mean, b_var = self.get_gaussian_dist_parameters(self.b_logits)
         # print(f"maximum abs logit weight {self.W_logits.abs().max()}")
-        """
-        print(f"maximum logit weight {self.W_logits.max()}")
-        print(f"minimum logit weight {self.W_logits.min()}")
-
-        print(f"maximum mean weight {w_mean.max()}")
-        print(f"mininmum mean weight {w_mean.min()}")
-        """
         if self.in_feat_type == ValueTypes.REAL:
             # transpose the input matrix to (in_feat x n)
             input_values = x.transpose(0, 1).double()
@@ -292,3 +312,7 @@ if __name__ == "__main__":
     layer = LogitLinear(4, ValueTypes.REAL, 3, test_weight_matrix, test_bias_matrix, [-2, -1, 0, 1, 2])
     x = layer.forward(test_samples)
     print(x.shape)
+    # discretizing weights
+    print("sampled discrete network", layer.generate_discrete_network("sample"))
+    print("argmax discrete network", layer.generate_discrete_network("argmax"))
+

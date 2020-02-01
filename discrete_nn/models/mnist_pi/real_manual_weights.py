@@ -98,7 +98,7 @@ def train_model():
                     max = torch.max(data[x])
                     data[x] = 2 * ((data[x] - min) / (max - min)) - 1
                     data[x] = torch.round(data[x])
-
+        return
 
     # basic dataset holder
     mnist = MNIST()
@@ -118,7 +118,7 @@ def train_model():
     loss_fc = torch.nn.CrossEntropyLoss()
     # todo check regularization
 
-    num_epochs = 200
+    num_epochs = 10
 
     epochs_train_error = []
     epochs_validation_error = []
