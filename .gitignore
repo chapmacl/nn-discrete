@@ -1,3 +1,5 @@
 .idea/
 dataset_files/*
 *.pyc
+
+.vscode
