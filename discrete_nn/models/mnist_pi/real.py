@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from discrete_nn.dataset.mnist import MNIST
 from discrete_nn.models.base_model import BaseModel
 
-device = torch.device('cpu' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 if device == "cuda:0":
     torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
