@@ -81,6 +81,13 @@ class MnistPiTernaryTanh(BaseModel):
         # takes image vector
         return self.netlayers(x)
 
+    def get_net_parameters(self):
+        return self.state_dict()
+
+    def set_net_parameters(self, param_dict):
+        for k, v in param_dict.items():
+            self.state_dict()[k][:] = v
+
     def generate_discrete_networks(self, method: str) -> MnistPiReal:
         """
 
