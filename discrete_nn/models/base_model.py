@@ -36,6 +36,14 @@ class BaseModel(torch.nn.Module):
                 targets += Y.tolist()
         return self._gen_stats(targets, predictions, validation_losses)
 
+    def evaluate_and_save_to_disk(self, dataset, name):
+        loss, acc, class_report_dict = self._evaluate(dataset)
+        stats = defaultdict(list)
+        stats["loss"].append(loss)
+        stats["acc"].append(acc)
+        stats["classification_report"].append(class_report_dict)
+        self.save_to_disk(stats, name, False)
+
     @staticmethod
     def _gen_stats(targets, predictions, losses):
         """ generates basic training/evaluation information"""
@@ -71,7 +79,7 @@ class BaseModel(torch.nn.Module):
         #print(f"training losses {batch_loss_train}")
         return self._gen_stats(targets, predictions, batch_loss_train)
 
-    def save_to_disk(self, stats, name: str):
+    def save_to_disk(self, stats, name: str, save_model=True):
         """Saves model's pickled class as pickle, the training metrics and a copy of the weight parameters as a pickle
         to disk"""
         now = datetime.datetime.now()
@@ -81,13 +89,12 @@ class BaseModel(torch.nn.Module):
 
         with open(os.path.join(container_folder, "metrics.json"), "w") as f:
             json.dump(stats, f)
+        if save_model:
+            with open(os.path.join(container_folder, f"{self.__class__.__name__}.pickle"), "wb") as f:
+                pickle.dump(self, f)
 
-        with open(os.path.join(container_folder, f"{self.__class__.__name__}.pickle"), "wb") as f:
-            pickle.dump(self, f)
-
-        with open(os.path.join(container_folder, f"{self.__class__.__name__}.param.pickle"), "wb") as f:
-            pickle.dump(self.get_net_parameters(), f)
-        self.container_folder = container_folder
+            with open(os.path.join(container_folder, f"{self.__class__.__name__}.param.pickle"), "wb") as f:
+                pickle.dump(self.get_net_parameters(), f)
 
     def train_model(self, training_dataset, validation_dataset, test_dataset, epochs, model_name,
                     evaluate_before_train: bool = False):

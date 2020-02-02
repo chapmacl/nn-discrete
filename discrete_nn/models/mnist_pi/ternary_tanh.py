@@ -144,26 +144,24 @@ if __name__ == "__main__":
 
     print('Using device:', device)
 
-
-
-    with open(model_path+"/mnist_real_param.pickle", "rb") as f:
+    real_model_param_path = os.path.join(model_path, "MnistPiReal-real-trained-2020-2-2--h17m58",
+                                         "MnistPiReal.param.pickle")
+    with open(real_model_param_path, "rb") as f:
         real_param = pickle.load(f)
-
-    logit_net = MnistPiTernaryTanh(real_param)
-    #with open(model_path+"/mnist_pi_ternary_tanh.pickle", "rb") as f:
-    #    logit_net: MnistPiTernaryTanh = pickle.load(f)
+        logit_net = MnistPiTernaryTanh(real_param)
 
     # discretizing and evaluating
+    # todo should probably generate several sampled ones?
     discrete_net = logit_net.generate_discrete_networks("sample")
-    test_loss, test_acc, accuracy_report_dict = discrete_net._evaluate(test_loader)
-    print(accuracy_report_dict)
-    print(f"Discretizing network directly without training logits: test_loss: {test_loss}, test_acc; {test_acc}")
+    discrete_net.evaluate_and_save_to_disk(test_loader, "ex3.1_untrained_discretized_ternary_sample")
+    discrete_net = logit_net.generate_discrete_networks("argmax")
+    discrete_net.evaluate_and_save_to_disk(test_loader, "ex3.1_untrained_discretized_ternary_argmax")
 
-    # training logits, discretizing and evaluating
-    num_epochs_logits = 1
-    logit_net.train_model(train_loader, validation_loader, num_epochs_logits)
-    #logit_net = train_logit_model(train_loader, validation_loader, test_loader, num_epochs_logits, real_param)
+    # evaluate first logit model before training, train and evaluate again
+    logit_net.train_model(train_loader, validation_loader, test_loader, 200, "logits_ternary_tanh", True)
+
+    # discretizing trained logits net and evaluating
     discrete_net = logit_net.generate_discrete_networks("sample")
-    test_loss, test_acc, classification_report_dict = discrete_net._evaluate(test_loader)
-    print(f"logits trained, net discretized: test_loss: {test_loss}, test_acc; {test_acc}")
-    print(classification_report_dict)
+    discrete_net.evaluate_and_save_to_disk(test_loader, "ex4.1_trained_discretized_ternary_sample")
+    discrete_net = logit_net.generate_discrete_networks("argmax")
+    discrete_net.evaluate_and_save_to_disk(test_loader, "ex4.1_trained_discretized_ternary_argmax")
