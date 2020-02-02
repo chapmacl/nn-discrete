@@ -68,24 +68,24 @@ class BaseModel(torch.nn.Module):
             batch_loss_train.append(loss)
             predictions += torch.nn.functional.softmax(net_output, dim=1).argmax(dim=1).tolist()
             targets += Y.tolist()
-        print(f"training losses {batch_loss_train}")
+        #print(f"training losses {batch_loss_train}")
         return self._gen_stats(targets, predictions, batch_loss_train)
 
     def save_to_disk(self, stats, name: str):
         """Saves model's pickled class as pickle, the training metrics and a copy of the weight parameters as a pickle
         to disk"""
         now = datetime.datetime.now()
-        container_folder = os.path.join(model_path, self.__name__ + "-" + name + f"-{now.year}-{now.month}-{now.date}"
-                                                                    f"--h{now.hour}m{now.min}")
+        container_folder = os.path.join(model_path, self.__class__.__name__ + "-" + name + f"-{now.year}-{now.month}-{now.day}"
+                                                                    f"--h{now.hour}m{now.minute}")
         os.mkdir(container_folder)
 
-        with open(os.path.join(container_folder, "metrics.json")) as f:
+        with open(os.path.join(container_folder, "metrics.json"), "w") as f:
             json.dump(stats, f)
 
-        with open(os.path.join(container_folder, f"{self.__name__}.pickle")) as f:
+        with open(os.path.join(container_folder, f"{self.__class__.__name__}.pickle"), "wb") as f:
             pickle.dump(self, f)
 
-        with open(os.path.join(container_folder, f"{self.__name__}.param.pickle")) as f:
+        with open(os.path.join(container_folder, f"{self.__class__.__name__}.param.pickle"), "wb") as f:
             pickle.dump(self.get_net_parameters(), f)
         self.container_folder = container_folder
 
