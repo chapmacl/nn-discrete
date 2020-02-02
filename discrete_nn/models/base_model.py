@@ -13,7 +13,6 @@ class BaseModel(torch.nn.Module):
         super().__init__()
         self.optimizer = None
         self.loss_funct = None
-        self.container_folder = None
 
     def _evaluate(self, dataset_generator):
         """
