@@ -47,7 +47,7 @@ class LogitLinear(nn.Module):
         """
         probabilities_w = self.generate_weight_probabilities(self.W_logits)
         probabilities_b = self.generate_weight_probabilities(self.b_logits)
-
+        assert(probabilities_b.shape != probabilities_w.shape)
         # logit probabilities must be in inner dimension for torch.distribution.Multinomial
         probabilities_w = probabilities_w.transpose(0, 1).transpose(1, 2)
         # stepped transpose bc we need to keep the order of the other dimensions
