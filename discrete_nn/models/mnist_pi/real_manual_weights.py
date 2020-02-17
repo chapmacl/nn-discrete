@@ -10,7 +10,7 @@ import os
 import pickle
 from sklearn.metrics import accuracy_score
 
-from discrete_nn.models.base_model import BaseModel
+from discrete_nn.models.base_model import AlternateDiscretizationBaseModel
 from discrete_nn.dataset.mnist import MNIST
 from discrete_nn.settings import model_path
 
@@ -19,7 +19,8 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 if device == "cuda:0":
     torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
-class MnistPiAltDiscrete(BaseModel):
+
+class MnistPiAltDiscrete(AlternateDiscretizationBaseModel):
     """
     Real valued (non convolutionary) network for the mnist dataset
     """
@@ -130,11 +131,12 @@ def train_model():
 
     net = MnistPiAltDiscrete()
     net = net.to(device)
+    num_epochs = 100
 
+    net.train_model(train_loader, validation_loader, test_loader, num_epochs, "test alternate disc")
     # todo check regularization
 
-    num_epochs = 10
-
+    """
     real_model_param_path = os.path.join(model_path, "MnistPiReal-real-trained-2020-2-2--h17m58",
                                          "MnistPiReal.param.pickle")
     with open(real_model_param_path, "rb") as f:
@@ -142,9 +144,9 @@ def train_model():
     net.set_net_parameters(real_param)
 
     net.evaluate_and_save_to_disk(test_loader, "alternate_discretization")
-
+    """
 
 if __name__ == "__main__":
-
+    torch.autograd.set_detect_anomaly(True)
     print('Using device:', device)
     train_model()
