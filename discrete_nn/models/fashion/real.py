@@ -1,6 +1,12 @@
 from torchvision.datasets import FashionMNIST
-
+from torchvision.transforms import ToTensor
+import torch
+from torch.utils.data import DataLoader
 from discrete_nn.models.base_model import BaseModel
+
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+if device == "cuda:0":
+    torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
 class FashionReal(BaseModel):
     def __init__(self, weights = None):
@@ -62,30 +68,37 @@ class FashionReal(BaseModel):
         repr_dict["L3_Linear_b"] = internal_dict["netlayers.9.bias"].reshape(-1, 1)
         return repr_dict
 
+
 def train_model():
-    # basic dataset holder
-    mnist = MNIST()
     # creates the dataloader for pytorch
     batch_size = 100
+    ToTensorMethod = ToTensor()
+
+    def flatten_image(pil_image):
+        return ToTensorMethod(pil_image).reshape(-1)
 
     from discrete_nn.settings import dataset_path
     import os
     mnist_fashion_path = os.path.join(dataset_path, "fashion")
 
-    train_val_dataset = FashionMNIST(mnist_fashion_path, download=True, train=True)
+    train_val_dataset = FashionMNIST(mnist_fashion_path, download=True, train=True, transform=flatten_image)
 
     train_size = int(len(train_val_dataset)*0.8)
     eval_size = len(train_val_dataset) - train_size
-    train_loader, validation_loader = torch.utils.data.random_split(train_val_dataset, [train_size, eval_size])
+    train_dataset, validation_dataset = torch.utils.data.random_split(train_val_dataset, [train_size, eval_size])
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    validation_loader = DataLoader(validation_dataset, batch_size=batch_size)
 
-    test_loader = FashionMNIST(mnist_fashion_path, download=True, train=False)
+    test_loader = DataLoader(FashionMNIST(mnist_fashion_path, download=True, train=False, transform=flatten_image),
+                             batch_size=batch_size)
 
     net = FashionReal()
     net = net.to(device)
 
-    num_epochs = 200
+    num_epochs = 400
     # will save metrics and model to disk
     net.train_model(train_loader, validation_loader, test_loader, num_epochs, "real")
+
 
 if __name__ == "__main__":
     print('Using device:', device)
