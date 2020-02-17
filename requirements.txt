@@ -1,5 +1,0 @@
-scikit-learn
-torch
-tqdm
-numpy
-torchvision
