@@ -1,31 +1,19 @@
-"""
-This module implements the real valued (non convolutionary) network for the mnist dataset
-"""
+from torchvision.datasets import FashionMNIST
+from torchvision.transforms import ToTensor
 import torch
-from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
-import numpy as np
-import tqdm
-import os
-import pickle
-from sklearn.metrics import accuracy_score
-
-from discrete_nn.models.base_model import AlternateDiscretizationBaseModel
-from discrete_nn.dataset.mnist import MNIST
-from discrete_nn.settings import model_path
-
+from discrete_nn.models.base_model import BaseModel
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 if device == "cuda:0":
     torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
+class FashionReal(BaseModel):
+    def __init__(self, weights = None):
+        """
 
-class MnistPiAltDiscrete(AlternateDiscretizationBaseModel):
-    """
-    Real valued (non convolutionary) network for the mnist dataset
-    """
-
-    def __init__(self):
+        :param weights: if not none contains the weighs for the networks layers
+        """
         super().__init__()
         # defining all the network's layers
         self.netlayers = torch.nn.Sequential(
@@ -44,7 +32,6 @@ class MnistPiAltDiscrete(AlternateDiscretizationBaseModel):
             #
             torch.nn.Dropout(p=0.4),
             torch.nn.Linear(1200, 10))  # last layer outputs the unnormalized loglikelihood used by the softmax later
-
         self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-3, weight_decay=1e-4)
         self.loss_funct = torch.nn.CrossEntropyLoss()
 
@@ -68,7 +55,6 @@ class MnistPiAltDiscrete(AlternateDiscretizationBaseModel):
     def get_net_parameters(self):
         """:returns a dictionary with the trainable parameters"""
         internal_dict = {name: value for name, value in self.named_parameters()}
-
         repr_dict = dict()
         repr_dict["L1_Linear_W"] = internal_dict["netlayers.1.weight"]
         repr_dict["L1_Linear_b"] = internal_dict["netlayers.1.bias"].reshape(-1, 1)
@@ -82,71 +68,38 @@ class MnistPiAltDiscrete(AlternateDiscretizationBaseModel):
         repr_dict["L3_Linear_b"] = internal_dict["netlayers.9.bias"].reshape(-1, 1)
         return repr_dict
 
-    def discretize(self):
-        # Manually adjust the weights
-        modules = self._modules["netlayers"]._modules
-        layerIndices = ["1", "5", "9"]
-        for mod in layerIndices:
-            layer = modules[str(mod)]
-            if hasattr(layer, "weight"):
-                data = layer.weight
-                for x in range(0, len(data)):
-                    min = torch.min(data[x])
-                    max = torch.max(data[x])
-                    data[x] = 2 * ((data[x] - min) / (max - min)) - 1
-                    data[x] = torch.round(data[x])
-        return
-
-
-class DatasetMNIST(Dataset):
-    """
-    Dataset for pytorch's DataLoader
-    """
-
-    def __init__(self, x, y):
-        self.x = torch.from_numpy(x) * 2 - 1
-        self.y = torch.from_numpy(y).long()
-        self.x = self.x.to(device)
-        self.y = self.y.to(device)
-
-    def __len__(self):
-        return self.x.shape[0]
-
-    def __getitem__(self, item_inx):
-        return self.x[item_inx], self.y[item_inx]
-
 
 def train_model():
-
-    # basic dataset holder
-    mnist = MNIST()
     # creates the dataloader for pytorch
     batch_size = 100
-    train_loader = DataLoader(dataset=DatasetMNIST(mnist.x_train, mnist.y_train), batch_size=batch_size,
-                              shuffle=True)
-    validation_loader = DataLoader(dataset=DatasetMNIST(mnist.x_val, mnist.y_val), batch_size=batch_size,
-                                   shuffle=False)
-    test_loader = DataLoader(dataset=DatasetMNIST(mnist.x_test, mnist.y_test), batch_size=batch_size,
-                             shuffle=False)
+    ToTensorMethod = ToTensor()
 
-    net = MnistPiAltDiscrete()
+    def flatten_image(pil_image):
+        return ToTensorMethod(pil_image).reshape(-1)
+
+    from discrete_nn.settings import dataset_path
+    import os
+    mnist_fashion_path = os.path.join(dataset_path, "fashion")
+
+    train_val_dataset = FashionMNIST(mnist_fashion_path, download=True, train=True, transform=flatten_image)
+
+    train_size = int(len(train_val_dataset)*0.8)
+    eval_size = len(train_val_dataset) - train_size
+    train_dataset, validation_dataset = torch.utils.data.random_split(train_val_dataset, [train_size, eval_size])
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    validation_loader = DataLoader(validation_dataset, batch_size=batch_size)
+
+    test_loader = DataLoader(FashionMNIST(mnist_fashion_path, download=True, train=False, transform=flatten_image),
+                             batch_size=batch_size)
+
+    net = FashionReal()
     net = net.to(device)
-    num_epochs = 100
 
-    net.train_model(train_loader, validation_loader, test_loader, num_epochs, "test alternate disc")
-    # todo check regularization
+    num_epochs = 400
+    # will save metrics and model to disk
+    net.train_model(train_loader, validation_loader, test_loader, num_epochs, "real")
 
-    """
-    real_model_param_path = os.path.join(model_path, "MnistPiReal-real-trained-2020-2-2--h17m58",
-                                         "MnistPiReal.param.pickle")
-    with open(real_model_param_path, "rb") as f:
-        real_param = pickle.load(f)
-    net.set_net_parameters(real_param)
-
-    net.evaluate_and_save_to_disk(test_loader, "alternate_discretization")
-    """
 
 if __name__ == "__main__":
-    torch.autograd.set_detect_anomaly(True)
     print('Using device:', device)
     train_model()
