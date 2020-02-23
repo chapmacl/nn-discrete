@@ -4,10 +4,11 @@ import json
 import pickle
 from sklearn.metrics import accuracy_score, classification_report
 from tqdm import tqdm
+import numpy as np
 import torch
 from collections import defaultdict
 from discrete_nn.settings import model_path
-
+import gc
 
 class BaseModel(torch.nn.Module):
     def __init__(self):
@@ -28,10 +29,11 @@ class BaseModel(torch.nn.Module):
         predictions = []
         # disables gradient calculation since it is not needed
         with torch.no_grad():
+            gc.collect()
             for batch_inx, (X, Y) in enumerate(dataset_generator):
                 outputs = self(X)
                 loss = self.loss_funct(outputs, Y)
-                validation_losses.append(loss)
+                validation_losses.append(float(loss))
                 predictions += torch.nn.functional.softmax(outputs, dim=1).argmax(dim=1).tolist()
                 targets += Y.tolist()
         return self._gen_stats(targets, predictions, validation_losses)
@@ -47,7 +49,7 @@ class BaseModel(torch.nn.Module):
     @staticmethod
     def _gen_stats(targets, predictions, losses):
         """ generates basic training/evaluation information"""
-        eval_loss = torch.mean(torch.stack(losses)).item()
+        eval_loss = np.mean(losses)
         eval_acc = accuracy_score(targets, predictions)
         class_report_dict = classification_report(targets, predictions, output_dict=True)
         return eval_loss, eval_acc, class_report_dict
@@ -66,6 +68,7 @@ class BaseModel(torch.nn.Module):
         predictions = []
         # training part of epoch
         for batch_inx, (X, Y) in enumerate(dataset_generator):
+            gc.collect()
             self.optimizer.zero_grad()  # reset gradients from previous iteration
             # do forward pass
             net_output = self(X)
@@ -74,7 +77,7 @@ class BaseModel(torch.nn.Module):
             # backward propagate loss
             loss.backward()
             self.optimizer.step()
-            batch_loss_train.append(loss)
+            batch_loss_train.append(float(loss))
             predictions += torch.nn.functional.softmax(net_output, dim=1).argmax(dim=1).tolist()
             targets += Y.tolist()
         #print(f"training losses {batch_loss_train}")

@@ -74,7 +74,8 @@ class MnistPiTernaryTanh(BaseModel):
         self.state_dict()['netlayers.3.bias'][:] = real_model_params["L1_BatchNorm_b"]
         self.state_dict()['netlayers.8.weight'][:] = real_model_params["L2_BatchNorm_W"]
         self.state_dict()['netlayers.8.bias'][:] = real_model_params["L2_BatchNorm_b"]
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-3, weight_decay=1e-4)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-3, weight_decay=1e-8)
+        print(self.optimizer)
         self.loss_funct = torch.nn.CrossEntropyLoss()
 
     def forward(self, x):
@@ -137,7 +138,7 @@ class DatasetMNIST(Dataset):
         return self.x[item_inx], self.y[item_inx]
 
 
-if __name__ == "__main__":
+def train_model():
     batch_size = 100
     # basic dataset holder
     mnist = MNIST()
@@ -156,19 +157,24 @@ if __name__ == "__main__":
     with open(real_model_param_path, "rb") as f:
         real_param = pickle.load(f)
         logit_net = MnistPiTernaryTanh(real_param)
-
+    logit_net = logit_net.to(device)
     # discretizing and evaluating
     # todo should probably generate several sampled ones?
     discrete_net = logit_net.generate_discrete_networks("sample")
+    discrete_net = discrete_net.to(device)
     discrete_net.evaluate_and_save_to_disk(test_loader, "ex3.1_untrained_discretized_ternary_sample")
     discrete_net = logit_net.generate_discrete_networks("argmax")
+    discrete_net = discrete_net.to(device)
     discrete_net.evaluate_and_save_to_disk(test_loader, "ex3.1_untrained_discretized_ternary_argmax")
-
+    del discrete_net
     # evaluate first logit model before training, train and evaluate again
-    logit_net.train_model(train_loader, validation_loader, test_loader, 200, "logits_ternary_tanh", True)
+    
+    logit_net.train_model(train_loader, validation_loader, test_loader, 100, "logits_ternary_tanh", True)
 
     # discretizing trained logits net and evaluating
     discrete_net = logit_net.generate_discrete_networks("sample")
+    discrete_net = discrete_net.to(device)
     discrete_net.evaluate_and_save_to_disk(test_loader, "ex4.1_trained_discretized_ternary_sample")
     discrete_net = logit_net.generate_discrete_networks("argmax")
+    discrete_net = discrete_net.to(device)
     discrete_net.evaluate_and_save_to_disk(test_loader, "ex4.1_trained_discretized_ternary_argmax")

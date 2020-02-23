@@ -95,7 +95,7 @@ def train_model():
     net = FashionReal()
     net = net.to(device)
 
-    num_epochs = 400
+    num_epochs = 100
     # will save metrics and model to disk
     net.train_model(train_loader, validation_loader, test_loader, num_epochs, "real")
 

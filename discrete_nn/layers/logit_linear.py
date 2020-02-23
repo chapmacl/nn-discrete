@@ -57,8 +57,10 @@ class LogitLinear(nn.Module):
             m_w = Multinomial(probs=probabilities_w)
             m_b = Multinomial(probs=probabilities_b)
             # this is a output_features x input_features x discretization_levels mask
-            sampled_w = m_w.sample()
-            sampled_b = m_b.sample()
+            sampled_w = m_w.sample().to("cpu")
+            sampled_b = m_b.sample().to("cpu")
+            # need to make sure these tensors are in the cpu
+            
 
             if torch.all(sampled_b.sum(dim=2) != 1):
                 raise ValueError("sampled mask for bias does not sum to 1")
@@ -75,8 +77,8 @@ class LogitLinear(nn.Module):
             argmax_w = torch.argmax(probabilities_w, dim=2)
             argmax_b = torch.argmax(probabilities_b, dim=2)
             # creating placeholder for discrete weights
-            sampled_w = torch.zeros_like(argmax_w)
-            sampled_b = torch.zeros_like(argmax_b)
+            sampled_w = torch.zeros_like(argmax_w).to("cpu")
+            sampled_b = torch.zeros_like(argmax_b).to("cpu")
             sampled_w[:] = discrete_values_tensor[argmax_w[:]]
             sampled_b[:] = discrete_values_tensor[argmax_b[:]]
 
