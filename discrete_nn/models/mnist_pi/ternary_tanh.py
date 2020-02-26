@@ -21,6 +21,8 @@ from discrete_nn.models.base_model import BaseModel
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 if device == "cuda:0":
     torch.set_default_tensor_type(torch.cuda.FloatTensor)
+    torch.set_default_dtype(torch.Float16)
+
 
 
 class MnistPiTernaryTanh(BaseModel):
@@ -116,6 +118,7 @@ class MnistPiTernaryTanh(BaseModel):
         }
 
         real_net = MnistPiReal()
+        real_net.to(device)
         real_net.set_net_parameters(state_dict)
         return real_net
 
@@ -159,16 +162,17 @@ if __name__ == "__main__":
 
     # discretizing and evaluating
     # todo should probably generate several sampled ones?
-    discrete_net = logit_net.generate_discrete_networks("sample")
+    logit_net.to(device)
+    """discrete_net = logit_net.generate_discrete_networks("sample")
     discrete_net.evaluate_and_save_to_disk(test_loader, "ex3.1_untrained_discretized_ternary_sample")
     discrete_net = logit_net.generate_discrete_networks("argmax")
-    discrete_net.evaluate_and_save_to_disk(test_loader, "ex3.1_untrained_discretized_ternary_argmax")
+    discrete_net.evaluate_and_save_to_disk(test_loader, "ex3.1_untrained_discretized_ternary_argmax")"""
 
     # evaluate first logit model before training, train and evaluate again
     logit_net.train_model(train_loader, validation_loader, test_loader, 200, "logits_ternary_tanh", True)
 
     # discretizing trained logits net and evaluating
-    discrete_net = logit_net.generate_discrete_networks("sample")
+    """discrete_net = logit_net.generate_discrete_networks("sample")
     discrete_net.evaluate_and_save_to_disk(test_loader, "ex4.1_trained_discretized_ternary_sample")
     discrete_net = logit_net.generate_discrete_networks("argmax")
-    discrete_net.evaluate_and_save_to_disk(test_loader, "ex4.1_trained_discretized_ternary_argmax")
+    discrete_net.evaluate_and_save_to_disk(test_loader, "ex4.1_trained_discretized_ternary_argmax")"""

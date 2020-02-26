@@ -36,6 +36,9 @@ class LogitLinear(nn.Module):
                                            requires_grad=True)
         self.b_logits = torch.nn.Parameter(self.discretize_weights_probabilistic(initialization_bias),
                                            requires_grad=True)
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        if self.device == "cuda:0":
+            torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
     def generate_discrete_network(self, method:str = "sample"):
         """ generates discrete weights from the weights of the layer based on the weight distributions
@@ -52,7 +55,8 @@ class LogitLinear(nn.Module):
         probabilities_w = probabilities_w.transpose(0, 1).transpose(1, 2)
         # stepped transpose bc we need to keep the order of the other dimensions
         probabilities_b = probabilities_b.transpose(0, 1).transpose(1, 2)
-        discrete_values_tensor = torch.tensor(self.discrete_values).double()
+        discrete_values_tensor = torch.tensor(self.discrete_values).to(self.device).double()
+        discrete_values_tensor.to(self.device)
         if method == "sample":
             m_w = Multinomial(probs=probabilities_w)
             m_b = Multinomial(probs=probabilities_b)

@@ -8,11 +8,15 @@ import torch
 from collections import defaultdict
 from discrete_nn.settings import model_path
 
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+if device == "cuda:0":
+    torch.set_default_tensor_type(torch.cuda.FloatTensor)
 class BaseModel(torch.nn.Module):
     def __init__(self):
         super().__init__()
         self.optimizer = None
         self.loss_funct = None
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     def _evaluate(self, dataset_generator):
         """
@@ -29,6 +33,7 @@ class BaseModel(torch.nn.Module):
         with torch.no_grad():
             for batch_inx, (X, Y) in enumerate(dataset_generator):
                 outputs = self(X)
+                outputs.to(self.device)
                 loss = self.loss_funct(outputs, Y)
                 validation_losses.append(loss)
                 predictions += torch.nn.functional.softmax(outputs, dim=1).argmax(dim=1).tolist()
@@ -64,6 +69,7 @@ class BaseModel(torch.nn.Module):
         predictions = []
         # training part of epoch
         for batch_inx, (X, Y) in enumerate(dataset_generator):
+            print(batch_inx)
             self.optimizer.zero_grad()  # reset gradients from previous iteration
             # do forward pass
             net_output = self(X)
