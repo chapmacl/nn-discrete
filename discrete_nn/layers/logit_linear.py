@@ -61,8 +61,8 @@ class LogitLinear(nn.Module):
             m_w = Multinomial(probs=probabilities_w)
             m_b = Multinomial(probs=probabilities_b)
             # this is a output_features x input_features x discretization_levels mask
-            sampled_w = m_w.sample().to("cpu")
-            sampled_b = m_b.sample().to("cpu")
+            sampled_w = m_w.sample()
+            sampled_b = m_b.sample()
             # need to make sure these tensors are in the cpu
             
 

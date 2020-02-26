@@ -181,3 +181,6 @@ def train_model():
     discrete_net = logit_net.generate_discrete_networks("argmax")
     discrete_net = discrete_net.to(device)
     discrete_net.evaluate_and_save_to_disk(test_loader, "ex4.1_trained_discretized_ternary_argmax")
+
+if __name__ == "__main__":
+    train_model()
