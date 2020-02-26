@@ -4,9 +4,11 @@ import json
 import pickle
 from sklearn.metrics import accuracy_score, classification_report
 from tqdm import tqdm
+import numpy as np
 import torch
 from collections import defaultdict
 from discrete_nn.settings import model_path
+import gc
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 if device == "cuda:0":
@@ -31,11 +33,12 @@ class BaseModel(torch.nn.Module):
         predictions = []
         # disables gradient calculation since it is not needed
         with torch.no_grad():
+            gc.collect()
             for batch_inx, (X, Y) in enumerate(dataset_generator):
                 outputs = self(X)
                 outputs.to(self.device)
                 loss = self.loss_funct(outputs, Y)
-                validation_losses.append(loss)
+                validation_losses.append(float(loss))
                 predictions += torch.nn.functional.softmax(outputs, dim=1).argmax(dim=1).tolist()
                 targets += Y.tolist()
         return self._gen_stats(targets, predictions, validation_losses)
@@ -51,7 +54,7 @@ class BaseModel(torch.nn.Module):
     @staticmethod
     def _gen_stats(targets, predictions, losses):
         """ generates basic training/evaluation information"""
-        eval_loss = torch.mean(torch.stack(losses)).item()
+        eval_loss = np.mean(losses)
         eval_acc = accuracy_score(targets, predictions)
         class_report_dict = classification_report(targets, predictions, output_dict=True)
         return eval_loss, eval_acc, class_report_dict
@@ -64,12 +67,13 @@ class BaseModel(torch.nn.Module):
 
     def _train_epoch(self, dataset_generator):
         self.train()
+        self.zero_grad()
         batch_loss_train = []
         targets = []
         predictions = []
         # training part of epoch
         for batch_inx, (X, Y) in enumerate(dataset_generator):
-            print(batch_inx)
+            gc.collect()
             self.optimizer.zero_grad()  # reset gradients from previous iteration
             # do forward pass
             net_output = self(X)
@@ -78,7 +82,7 @@ class BaseModel(torch.nn.Module):
             # backward propagate loss
             loss.backward()
             self.optimizer.step()
-            batch_loss_train.append(loss)
+            batch_loss_train.append(float(loss))
             predictions += torch.nn.functional.softmax(net_output, dim=1).argmax(dim=1).tolist()
             targets += Y.tolist()
         #print(f"training losses {batch_loss_train}")
@@ -126,6 +130,75 @@ class BaseModel(torch.nn.Module):
 
         for epoch_in in tqdm(range(epochs), desc="Training Network. Epoch:"):
             training_loss, training_acc, training_class_report = self._train_epoch(training_dataset)
+            # starting epochs evaluation
+            validation_loss, validation_acc, validation_class_report = self._evaluate(validation_dataset)
+
+            stats["training_loss"].append(training_loss)
+            stats["training_acc"].append(training_acc)
+            stats["training_classification_report"].append(training_class_report)
+            stats["validation_loss"].append(validation_loss)
+            stats["validation_acc"].append(validation_acc)
+            stats["validation_classification_report"].append(validation_class_report)
+
+            print(f"epoch {epoch_in + 1}/{epochs}: "
+                  f"train loss: {training_loss:.4f} / "
+                  f"validation loss: {validation_loss:.4f} /"
+                  f"validation acc: {validation_acc} /"
+                  f"validation precision: {validation_class_report['weighted avg']['precision']} /"
+                  f"validation recall: {validation_class_report['weighted avg']['recall']} /")
+
+        test_loss, test_acc, test_class_report = self._evaluate(test_dataset)
+        stats["test_loss"] = test_loss
+        stats["test_acc"] = test_acc
+        stats["test_classification_report"] = test_class_report
+        self.save_to_disk(stats, f"{model_name}-trained")
+
+
+class AlternateDiscretizationBaseModel(BaseModel):
+    """
+    This class is the base implementation of generic models which apply a discretization step during training
+    """
+    def __init__(self):
+        super().__init__()
+
+    def set_net_parameters(self, param_dict):
+        raise NotImplementedError
+
+    def get_net_parameters(self):
+        raise NotImplementedError
+
+    def discretize(self):
+        """Discretizes a model's weights. Model dependent"""
+        raise NotImplementedError
+
+    def train_model(self, training_dataset, validation_dataset, test_dataset, epochs, model_name,
+                    evaluate_before_train: bool = False):
+        """
+        Trains the model with a training dataset and uses the validation_dataset to evaluate it at every epoch. Results
+        are saved to disk.
+        :param training_dataset: generator for training data
+        :param validation_dataset: ... for validation
+        :param test_dataset: ... for test
+        :param epochs: number of epochs to train for
+        :param model_name: a name for the model (important for saving to disk)
+        :param evaluate_before_train: if set, model will be evaluate before training (useful in the case of a logit
+        model initialized with real weights). The untrained model will be saved to disk
+        :return:
+        """
+        if evaluate_before_train:
+            eval_stats = defaultdict(list)
+            test_loss, test_acc, test_class_report = self._evaluate(test_dataset)
+            eval_stats["test_loss"] = test_loss
+            eval_stats["test_acc"] = test_acc
+            eval_stats["test_classification_report"] = test_class_report
+            self.save_to_disk(eval_stats, f"{model_name}-untrained")
+        stats = defaultdict(list)
+
+        for epoch_in in tqdm(range(epochs), desc="Training Network. Epoch:"):
+            training_loss, training_acc, training_class_report = self._train_epoch(training_dataset)
+            # call discretization method
+            with torch.no_grad():
+                self.discretize()
             # starting epochs evaluation
             validation_loss, validation_acc, validation_class_report = self._evaluate(validation_dataset)
 

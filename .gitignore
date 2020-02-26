@@ -1,5 +1,7 @@
+*egg-info
 .idea/
 dataset_files/*
+model_files/*
 *.pyc
 
 .vscode

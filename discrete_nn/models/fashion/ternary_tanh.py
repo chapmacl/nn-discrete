@@ -1,17 +1,14 @@
 """
-This module implements the real valued (non convolutionary) network for the mnist dataset
+This module implements the real valued (non convolutionary) network for the fashion mnist dataset
 """
 import torch
-from torch.utils.data import Dataset
+from torchvision.datasets import FashionMNIST
+from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
-import numpy as np
-import tqdm
 import os
 import pickle
-from sklearn.metrics import accuracy_score, classification_report
 
-from discrete_nn.dataset.mnist import MNIST
-from discrete_nn.settings import model_path
+from discrete_nn.settings import model_path, dataset_path
 from discrete_nn.layers.types import ValueTypes
 from discrete_nn.layers.logit_linear import TernaryLinear
 from discrete_nn.layers.local_reparametrization import LocalReparametrization
@@ -21,13 +18,11 @@ from discrete_nn.models.base_model import BaseModel
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 if device == "cuda:0":
     torch.set_default_tensor_type(torch.cuda.FloatTensor)
-    torch.set_default_dtype(torch.Float16)
 
 
-
-class MnistPiTernaryTanh(BaseModel):
+class FashionTernaryTanh(BaseModel):
     """
-    Real valued (non convolutionary) network for the mnist dataset
+    Real valued (non convolutionary) network for the fashion mnist dataset
     """
 
     def __init__(self, real_model_params):
@@ -77,7 +72,6 @@ class MnistPiTernaryTanh(BaseModel):
         self.state_dict()['netlayers.8.weight'][:] = real_model_params["L2_BatchNorm_W"]
         self.state_dict()['netlayers.8.bias'][:] = real_model_params["L2_BatchNorm_b"]
         self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-3, weight_decay=1e-8)
-        print(self.optimizer)
         self.loss_funct = torch.nn.CrossEntropyLoss()
 
     def forward(self, x):
@@ -119,65 +113,49 @@ class MnistPiTernaryTanh(BaseModel):
         }
 
         real_net = MnistPiReal()
-        real_net.to(device)
         real_net.set_net_parameters(state_dict)
         return real_net
 
-class DatasetMNIST(Dataset):
-    """
-    Dataset for pytorch's DataLoader
-    """
-
-    def __init__(self, x, y):
-        self.x = torch.from_numpy(x) * 2 - 1
-        self.y = torch.from_numpy(y).long()
-        self.x = self.x.to(device)
-        self.y = self.y.to(device)
-
-    def __len__(self):
-        return self.x.shape[0]
-
-    def __getitem__(self, item_inx):
-        return self.x[item_inx], self.y[item_inx]
-
-
 def train_model():
+
     batch_size = 100
-    # basic dataset holder
-    mnist = MNIST()
-    # creates the dataloader for pytorch
-    train_loader = DataLoader(dataset=DatasetMNIST(mnist.x_train, mnist.y_train), batch_size=batch_size,
-                              shuffle=True)
-    validation_loader = DataLoader(dataset=DatasetMNIST(mnist.x_val, mnist.y_val), batch_size=batch_size,
-                                   shuffle=False)
-    test_loader = DataLoader(dataset=DatasetMNIST(mnist.x_test, mnist.y_test), batch_size=batch_size,
-                             shuffle=False)
+    ToTensorMethod = ToTensor()
+
+    def flatten_image(pil_image):
+        return ToTensorMethod(pil_image).reshape(-1)
+
+    mnist_fashion_path = os.path.join(dataset_path, "fashion")
+    train_val_dataset = FashionMNIST(mnist_fashion_path, download=True, train=True, transform=flatten_image)
+
+    train_size = int(len(train_val_dataset) * 0.8)
+    eval_size = len(train_val_dataset) - train_size
+    train_dataset, validation_dataset = torch.utils.data.random_split(train_val_dataset, [train_size, eval_size])
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    validation_loader = DataLoader(validation_dataset, batch_size=batch_size)
+
+    test_loader = DataLoader(FashionMNIST(mnist_fashion_path, download=True, train=False, transform=flatten_image),
+                             batch_size=batch_size)
 
     print('Using device:', device)
 
-    real_model_param_path = os.path.join(model_path, "MnistPiReal-real-trained-2020-2-2--h17m58",
-                                         "MnistPiReal.param.pickle")
+    real_model_param_path = os.path.join(model_path, "FashionReal-real-trained-2020-2-18--h0m44",
+                                         "FashionReal.param.pickle")
     with open(real_model_param_path, "rb") as f:
         real_param = pickle.load(f)
-        logit_net = MnistPiTernaryTanh(real_param)
-    logit_net = logit_net.to(device)
+        logit_net = FashionTernaryTanh(real_param)
+
     # discretizing and evaluating
     # todo should probably generate several sampled ones?
     discrete_net = logit_net.generate_discrete_networks("sample")
-    discrete_net = discrete_net.to(device)
     discrete_net.evaluate_and_save_to_disk(test_loader, "ex3.1_untrained_discretized_ternary_sample")
     discrete_net = logit_net.generate_discrete_networks("argmax")
-    discrete_net = discrete_net.to(device)
     discrete_net.evaluate_and_save_to_disk(test_loader, "ex3.1_untrained_discretized_ternary_argmax")
-    del discrete_net
+
     # evaluate first logit model before training, train and evaluate again
-    
     logit_net.train_model(train_loader, validation_loader, test_loader, 100, "logits_ternary_tanh", True)
 
     # discretizing trained logits net and evaluating
     discrete_net = logit_net.generate_discrete_networks("sample")
-    discrete_net = discrete_net.to(device)
     discrete_net.evaluate_and_save_to_disk(test_loader, "ex4.1_trained_discretized_ternary_sample")
     discrete_net = logit_net.generate_discrete_networks("argmax")
-    discrete_net = discrete_net.to(device)
     discrete_net.evaluate_and_save_to_disk(test_loader, "ex4.1_trained_discretized_ternary_argmax")
