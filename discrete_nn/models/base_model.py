@@ -130,12 +130,18 @@ class BaseModel(torch.nn.Module):
 
         for epoch_in in tqdm(range(epochs), desc="Training Network. Epoch:"):
             training_loss, training_acc, training_class_report = self._train_epoch(training_dataset)
+            training_loss_post_update, training_acc_post_update, training_class_report_post_update = self._evaluate(training_dataset)
             # starting epochs evaluation
             validation_loss, validation_acc, validation_class_report = self._evaluate(validation_dataset)
 
-            stats["training_loss"].append(training_loss)
-            stats["training_acc"].append(training_acc)
-            stats["training_classification_report"].append(training_class_report)
+            stats["training_loss_post_update"].append(training_loss)
+            stats["training_acc_post_update"].append(training_acc)
+            stats["training_classification_report_post_update"].append(training_class_report)
+
+            stats["training_loss_post_update"].append(training_loss_post_update)
+            stats["training_acc_post_update"].append(training_acc_post_update)
+            stats["training_classification_report_post_update"].append(training_class_report_post_update)
+
             stats["validation_loss"].append(validation_loss)
             stats["validation_acc"].append(validation_acc)
             stats["validation_classification_report"].append(validation_class_report)
