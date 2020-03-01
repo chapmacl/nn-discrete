@@ -37,6 +37,7 @@ class FashionReal(BaseModel):
 
     def forward(self, x):
         # takes image vector
+        x = x.to(self.device)
         return self.netlayers(x)
 
     def set_net_parameters(self, param_dict):
@@ -75,7 +76,7 @@ def train_model():
     ToTensorMethod = ToTensor()
 
     def flatten_image(pil_image):
-        return ToTensorMethod(pil_image).reshape(-1)
+        return ToTensorMethod(pil_image).reshape(-1).to(device)
 
     from discrete_nn.settings import dataset_path
     import os
