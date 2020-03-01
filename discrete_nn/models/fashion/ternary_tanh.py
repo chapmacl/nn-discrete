@@ -116,7 +116,7 @@ class FashionTernaryTanh(BaseModel):
         real_net.set_net_parameters(state_dict)
         return real_net
 
-def train_model():
+def train_model(real_model_folder):
 
     batch_size = 100
     ToTensorMethod = ToTensor()
@@ -138,7 +138,7 @@ def train_model():
 
     print('Using device:', device)
 
-    real_model_param_path = os.path.join(model_path, "FashionReal-real-trained-2020-2-18--h0m44",
+    real_model_param_path = os.path.join(model_path, real_model_folder,
                                          "FashionReal.param.pickle")
     with open(real_model_param_path, "rb") as f:
         real_param = pickle.load(f)
