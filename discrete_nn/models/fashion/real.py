@@ -85,7 +85,7 @@ def train_model():
     mnist_fashion_path = os.path.join(dataset_path, "fashion")
 
     train_val_dataset = FashionMNIST(mnist_fashion_path, download=True, train=True, transform=flatten_image,
-                                     target_transform=transform_target))
+                                     target_transform=transform_target)
 
     train_size = int(len(train_val_dataset)*0.8)
     eval_size = len(train_val_dataset) - train_size
