@@ -37,6 +37,7 @@ class FashionReal(BaseModel):
 
     def forward(self, x):
         # takes image vector
+        x = x.to(self.device)
         return self.netlayers(x)
 
     def set_net_parameters(self, param_dict):
