@@ -122,10 +122,14 @@ def train_model(real_model_folder):
     ToTensorMethod = ToTensor()
 
     def flatten_image(pil_image):
-        return ToTensorMethod(pil_image).reshape(-1)
+        return ToTensorMethod(pil_image).reshape(-1).to(device)
+
+    def transform_target(target):
+        return torch.tensor(target).to(device)
 
     mnist_fashion_path = os.path.join(dataset_path, "fashion")
-    train_val_dataset = FashionMNIST(mnist_fashion_path, download=True, train=True, transform=flatten_image)
+    train_val_dataset = FashionMNIST(mnist_fashion_path, download=True, train=True, transform=flatten_image,
+                                     target_transform=transform_target)
 
     train_size = int(len(train_val_dataset) * 0.8)
     eval_size = len(train_val_dataset) - train_size
@@ -133,7 +137,8 @@ def train_model(real_model_folder):
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     validation_loader = DataLoader(validation_dataset, batch_size=batch_size)
 
-    test_loader = DataLoader(FashionMNIST(mnist_fashion_path, download=True, train=False, transform=flatten_image),
+    test_loader = DataLoader(FashionMNIST(mnist_fashion_path, download=True, train=False, transform=flatten_image,
+                                          target_transform=transform_target),
                              batch_size=batch_size)
 
     print('Using device:', device)
