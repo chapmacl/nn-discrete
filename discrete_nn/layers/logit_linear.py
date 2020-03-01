@@ -180,7 +180,7 @@ class LogitLinear(nn.Module):
             # sort indices
 
             position_per_value = torch.zeros_like(weight_row, dtype=torch.float64)
-            position_per_value[sort_indices] = torch.tensor(list(range(num_weights))).double() + 1.0
+            position_per_value[sort_indices] = torch.tensor(list(range(num_weights))).double().to("cuda:0") + 1.0
             cdf = position_per_value / num_weights
             # cumulative_sum = sort_val.abs().cumsum(dim=0)
             # cdf_val_sorted = cumulative_sum / sort_val.sum().abs()

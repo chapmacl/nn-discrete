@@ -155,7 +155,7 @@ def train_model():
 
     print('Using device:', device)
 
-    real_model_param_path = os.path.join(model_path, "MnistPiReal-real-trained-2020-2-2--h17m58",
+    real_model_param_path = os.path.join(model_path, "MnistPiReal-real-trained-2020-2-29--h11m44",
                                          "MnistPiReal.param.pickle")
     with open(real_model_param_path, "rb") as f:
         real_param = pickle.load(f)
