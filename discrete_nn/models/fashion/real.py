@@ -36,6 +36,7 @@ class FashionReal(BaseModel):
         self.loss_funct = torch.nn.CrossEntropyLoss()
 
     def forward(self, x):
+        x = x.to(device)
         # takes image vector
         return self.netlayers(x)
 
