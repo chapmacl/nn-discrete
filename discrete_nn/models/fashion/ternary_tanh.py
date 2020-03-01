@@ -148,12 +148,14 @@ def train_model(real_model_folder):
     with open(real_model_param_path, "rb") as f:
         real_param = pickle.load(f)
         logit_net = FashionTernaryTanh(real_param)
-
+    logit_net = logit_net.to(device)
     # discretizing and evaluating
     # todo should probably generate several sampled ones?
     discrete_net = logit_net.generate_discrete_networks("sample")
+    discrete_net = discrete_net.to(device)
     discrete_net.evaluate_and_save_to_disk(test_loader, "ex3.1_untrained_discretized_ternary_sample")
     discrete_net = logit_net.generate_discrete_networks("argmax")
+    discrete_net = discrete_net.to(device)
     discrete_net.evaluate_and_save_to_disk(test_loader, "ex3.1_untrained_discretized_ternary_argmax")
 
     # evaluate first logit model before training, train and evaluate again
@@ -161,8 +163,10 @@ def train_model(real_model_folder):
 
     # discretizing trained logits net and evaluating
     discrete_net = logit_net.generate_discrete_networks("sample")
+    discrete_net = discrete_net.to(device)
     discrete_net.evaluate_and_save_to_disk(test_loader, "ex4.1_trained_discretized_ternary_sample")
     discrete_net = logit_net.generate_discrete_networks("argmax")
+    discrete_net = discrete_net.to(device)
     discrete_net.evaluate_and_save_to_disk(test_loader, "ex4.1_trained_discretized_ternary_argmax")
 
 if __name__ == "__main__":
