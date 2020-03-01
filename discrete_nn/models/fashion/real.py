@@ -36,7 +36,6 @@ class FashionReal(BaseModel):
         self.loss_funct = torch.nn.CrossEntropyLoss()
 
     def forward(self, x):
-        x = x.to(device)
         # takes image vector
         return self.netlayers(x)
 
@@ -76,7 +75,10 @@ def train_model():
     ToTensorMethod = ToTensor()
 
     def flatten_image(pil_image):
-        return ToTensorMethod(pil_image).reshape(-1)
+        return ToTensorMethod(pil_image).reshape(-1).to(device)
+
+    def transform_target(target):
+        return target.to(device)
 
     from discrete_nn.settings import dataset_path
     import os
@@ -90,7 +92,8 @@ def train_model():
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     validation_loader = DataLoader(validation_dataset, batch_size=batch_size)
 
-    test_loader = DataLoader(FashionMNIST(mnist_fashion_path, download=True, train=False, transform=flatten_image),
+    test_loader = DataLoader(FashionMNIST(mnist_fashion_path, download=True, train=False, transform=flatten_image,
+                                          target_transform=transform_target),
                              batch_size=batch_size)
 
     net = FashionReal()
