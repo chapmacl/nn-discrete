@@ -128,6 +128,7 @@ class LogitConv(nn.Module):
         :returns: tuple (sampled_w, sampled_b) where sampled_w and sampled_b are tensors of the shapes
         (output_channels x input_channels x kernel rows x kernel columns) and (output_features x 1). sampled_b is None if the layer has no bias
         """
+
         probabilities_w = self.generate_weight_probabilities(self.W_logits)
         # logit probabilities must be in inner dimension for torch.distribution.Multinomial
         # stepped transpose bc we need to keep the order of the other dimensions
@@ -199,7 +200,7 @@ class LogitConv(nn.Module):
             the number of out features.
 
         """
-
+        input_batch = input_batch.double()
         w_mean, w_var = self.get_gaussian_dist_parameters(self.W_logits)
         # calculates padding
         padding = math.floor(self.kernel_size[0]/2), math.floor(self.kernel_size[1]/2)
