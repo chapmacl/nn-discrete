@@ -74,6 +74,9 @@ class MnistTernaryTanh(BaseModel):
         self.state_dict()["netlayers.15.weight"] = real_model_params["L3_BatchNorm_W"]
         self.state_dict()["netlayers.15.bias"] = real_model_params["L3_BatchNorm_b"]
 
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-3, weight_decay=1e-4)
+        self.loss_funct = torch.nn.CrossEntropyLoss()
+
     def forward(self, x):
         # takes image vector
         return self.netlayers(x)
