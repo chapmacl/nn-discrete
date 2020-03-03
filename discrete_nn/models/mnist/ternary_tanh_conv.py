@@ -12,8 +12,9 @@ from sklearn.metrics import accuracy_score
 
 from discrete_nn.dataset.mnist import MNIST
 from discrete_nn.settings import model_path
-from discrete_nn.layers.types import ValueTypes
+from discrete_nn.layers.type_defs import ValueTypes, DiscreteWeights
 from discrete_nn.layers.logit_linear import TernaryLinear
+from discrete_nn.layers.conv import LogitConv
 from discrete_nn.layers.local_reparametrization import LocalReparametrization
 from discrete_nn.models.mnist.real_conv import MnistReal
 from discrete_nn.layers.Flatten import Flatten
@@ -23,7 +24,7 @@ if device == "cuda:0":
     torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
 
-class MnistPiTernaryTanh(torch.nn.Module):
+class MnistTernaryTanh(torch.nn.Module):
     """
     Real valued (non convolutionary) network for the mnist dataset
     """
@@ -34,51 +35,40 @@ class MnistPiTernaryTanh(torch.nn.Module):
         :param real_model_params: a dictionary containing the real weights of the pretrained model
         """
         super().__init__()
-        s2_l1_conv = torch.nn.Conv2d(1, 32, 5, stride=1)
-        s3_l1_repar = LocalReparametrization(32, ValueTypes.GAUSSIAN)  # outputs a value and not a dist.
-        s4_l1_pool = torch.nn.MaxPool2d(2)
-        s5_l1_batchnorm = torch.nn.BatchNorm2d(32, momentum=0.1)
-        s6_l1_tanh = torch.nn.Tanh()
-
-        s7_l2_dropout = torch.nn.Dropout(p=0.2)
-        s8_l2_conv = torch.nn.Conv2d(32, 64, 5, stride=1)
-        s9_l2_repar = LocalReparametrization(64, ValueTypes.GAUSSIAN)  # outputs a value and not a dist.
-        s10_l2_pool = torch.nn.MaxPool2d(2)
-        s11_l2_batchnorm = torch.nn.BatchNorm2d(64, momentum=0.1)
-        s12_l2_tanh = torch.nn.Tanh()
-
-        s13_l3_dropout = torch.nn.Dropout(p=0.3)
-        s14_l3_linear = TernaryLinear(1024, ValueTypes.REAL, 512, real_model_params["L3_Linear_W"],
-                                      real_model_params["L3_Linear_W"])
-        s15_l3_repar = LocalReparametrization(10, ValueTypes.GAUSSIAN)
-        s16_l3_batchnorm = torch.nn.BatchNorm1d(512, momentum=0.1)
-        s17_l3_tanh = torch.nn.Tanh()
-
-        s19_l4_linear = TernaryLinear(512, ValueTypes.REAL, 10, real_model_params["L4_Linear_W"],
-                                      real_model_params["L4_Linear_W"])
-        s20_l4_repar = LocalReparametrization(10, ValueTypes.GAUSSIAN)
-
-
-        # defining all the network's layers
         self.netlayers = torch.nn.Sequential(
-            s2_l1_conv,
-            s3_l1_repar,
-            s4_l1_pool,
-            s5_l1_batchnorm,
-            s6_l1_tanh,
-            s7_l2_dropout,
-            s8_l2_conv,
-            s9_l2_repar,
-            s10_l2_pool,
-            s11_l2_batchnorm,
-            s12_l2_tanh,
-            s13_l3_dropout,
-            s14_l3_linear,
-            s15_l3_repar,
-            s16_l3_batchnorm,
-            s17_l3_tanh,
-            s19_l4_linear,
-            s20_l4_repar)
+            LogitConv(1, ValueTypes.REAL, 32, 5, 1, real_model_params["L1_Conv_W"], None, DiscreteWeights.TERNARY),
+            #torch.nn.Conv2d(1, 32, 5, stride=1, bias=False),
+            LocalReparametrization(),
+            torch.nn.BatchNorm2d(32, momentum=0.1),
+            torch.nn.Tanh(),
+            torch.nn.MaxPool2d(2),
+            #
+            torch.nn.Dropout(p=0.2),
+            # torch.nn.Conv2d(32, 64, 5, stride=1, bias=False),
+            LogitConv(32, ValueTypes.REAL, 64, 5, 1, real_model_params["L2_Conv_W"], None, DiscreteWeights.TERNARY),
+            LocalReparametrization(),
+            torch.nn.BatchNorm2d(64, momentum=0.1),
+            torch.nn.Tanh(),
+            torch.nn.MaxPool2d(2),
+
+            #
+            Flatten(),
+            torch.nn.Dropout(p=0.3),
+            TernaryLinear(1024, ValueTypes.REAL, 512, real_model_params["L3_Linear_W"],
+                          real_model_params["L3_Linear_b"], normalize_activations=False),
+            LocalReparametrization(),
+            torch.nn.BatchNorm1d(512, momentum=0.1),
+            torch.nn.Tanh(),
+            #
+            TernaryLinear(512, ValueTypes.REAL, 10, real_model_params["L4_Linear_W"], real_model_params["L4_Linear_b"],
+                          normalize_activations=True),
+            LocalReparametrization(),
+        )
+
+        #setting weihts of torch layers
+
+
+
 
     def forward(self, x):
         # takes image vector

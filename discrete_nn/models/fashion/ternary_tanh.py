@@ -9,7 +9,7 @@ import os
 import pickle
 
 from discrete_nn.settings import model_path, dataset_path
-from discrete_nn.layers.types import ValueTypes
+from discrete_nn.layers.type_defs import ValueTypes
 from discrete_nn.layers.logit_linear import TernaryLinear
 from discrete_nn.layers.local_reparametrization import LocalReparametrization
 from discrete_nn.models.mnist_pi.real import MnistPiReal
@@ -35,21 +35,21 @@ class FashionTernaryTanh(BaseModel):
         s1_l1_dropout = torch.nn.Dropout(p=0.1)
         s2_l1_linear = TernaryLinear(784, ValueTypes.REAL, 1200, real_model_params["L1_Linear_W"],
                                      real_model_params["L1_Linear_b"])
-        s3_l1_repar = LocalReparametrization(1200, ValueTypes.GAUSSIAN)  # outputs a value and not a dist.
+        s3_l1_repar = LocalReparametrization()  # outputs a value and not a dist.
         s4_l1_batchnorm = torch.nn.BatchNorm1d(1200, momentum=0.1)
         s5_l1_tanh = torch.nn.Tanh()
 
         s6_l2_dropout = torch.nn.Dropout(p=0.2)
         s7_l2_linear = TernaryLinear(1200, ValueTypes.REAL, 1200, real_model_params["L2_Linear_W"],
                                      real_model_params["L2_Linear_b"])
-        s8_l2_repar = LocalReparametrization(1200, ValueTypes.GAUSSIAN)  # outputs a value and not a dist.
+        s8_l2_repar = LocalReparametrization()  # outputs a value and not a dist.
         s9_l2_batchnorm = torch.nn.BatchNorm1d(1200, momentum=0.1)
         s10_l2_tanh = torch.nn.Tanh()
 
         s6_l3_dropout = torch.nn.Dropout(p=0.3)
         s7_l3_linear = TernaryLinear(1200, ValueTypes.REAL, 10, real_model_params["L3_Linear_W"],
                                      real_model_params["L3_Linear_b"], normalize_activations=True)
-        s8_l3_repar = LocalReparametrization(10, ValueTypes.GAUSSIAN)
+        s8_l3_repar = LocalReparametrization()
         # defining all the network's layers
         self.netlayers = torch.nn.Sequential(
             s1_l1_dropout,

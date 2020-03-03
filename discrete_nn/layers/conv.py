@@ -1,30 +1,36 @@
+from enum import Enum
 from torch import nn
 from torch import Tensor
 from torch.distributions import Multinomial
 import torch
+import math
 
-from discrete_nn.layers.types import ValueTypes
+from typing import Union, Tuple
+
+from discrete_nn.layers.type_defs import ValueTypes, DiscreteWeights
 from discrete_nn.layers.weight_utils import discretize_weights_probabilistic
 
-class LogitLinear(nn.Module):
-    def __init__(self, num_input_channels, num_output_channels, kernel_size, stride, initialization_weights,
-                 initialization_bias, discrete_weight_values, normalize_activations: bool = False):
+
+class LogitConv(nn.Module):
+    def __init__(self, num_input_channels, input_feature_types: ValueTypes, num_output_channels,
+                 kernel_size: Union[int, Tuple[int, int]], stride: Union[int, Tuple[int, int]], initialization_weights,
+                 initialization_bias, discrete_weight_values: DiscreteWeights):
         """
         Initializes a logit convolutional layer
         :param num_input_channels: number of input channels
         :param num_output_channels: ... of output channels
         :param kernel_size: a integer for a square kernel or a 2d tuple with the kernel size
         :param stride: a integer or 2d tuple for stride
-        :param initialization_weights: a tensor (output_channels x input_channels x kernel_rows x kernel_columns) with pre trained real weights to b/e
-        used for initializing the discrete ones
+        :param initialization_weights: a tensor (output_channels x input_channels x kernel_rows x kernel_columns) with
+         pre trained real weights to be used for initializing the discrete ones
         :param initialization_bias: a tensor (output_channels) with pre trained bias to be
         used for initializing the discrete ones
-        :param discrete_weight_values: a list with possible discrete weight values
-        :param normalize_activations:
+        :param discrete_weight_values: a value from the DiscreteWeights
         """
+        super().__init__()
         if type(kernel_size) == int and kernel_size > 0:
             self.kernel_size = (kernel_size, kernel_size)
-        elif type(kernel_size) == tuple and len(kernel_size) == 2 and type(kernel_size[0])==int and \
+        elif type(kernel_size) == tuple and len(kernel_size) == 2 and type(kernel_size[0]) == int and \
                 type(kernel_size[1]) == int and kernel_size[0] > 0 and kernel_size[1] > 0:
             self.kernel_size = kernel_size
         else:
@@ -40,17 +46,14 @@ class LogitLinear(nn.Module):
 
         self.n_input_channels = num_input_channels
         self.n_output_channels = num_output_channels
-        self.discrete_weight_values = discrete_weight_values
+        self.discrete_weight_values = discrete_weight_values.value
 
-        if initialization_weights.shape != (self.n_output_channels, self.n_input_channels,
-                                            self.kernel_size[0], self.kernel_size[1]):
+        if initialization_weights.shape != torch.Size([self.n_output_channels, self.n_input_channels,
+                                                       self.kernel_size[0], self.kernel_size[1]]):
             raise ValueError(f"initialization weights of invalid shape. Expected: "
                              f"{(self.n_output_channels, self.n_input_channels, self.kernel_size[0], self.kernel_size[1])}"
                              f" but got: {initialization_weights.shape}")
-        if initialization_bias.shape != (self.n_output_channels):
-            raise ValueError(f"initialization weights of invalid shape. Expected: "
-                             f"{(self.n_output_channels)}"
-                             f" but got: {initialization_bias.shape}")
+
         # generating multinomial distribution over the kernel weights
         # need to flatten the kernel weights
         flat_weights = initialization_weights.view(self.n_output_channels, self.n_input_channels, -1)
@@ -64,9 +67,111 @@ class LogitLinear(nn.Module):
                                                                          self.n_input_channels, self.kernel_size[0],
                                                                          self.kernel_size[1]),
                                            requires_grad=True)
+        if initialization_bias is not None:
+            if initialization_bias.shape != torch.Size([self.n_output_channels]):
+                raise ValueError(f"initialization weights of invalid shape. Expected: "
+                                 f"[{self.n_output_channels}]"
+                                 f" but got: {initialization_bias.shape}")
 
-        # this is a (n_output_channels x 1) tensor
-        self.b_logits = torch.nn.Parameter(
-            discretize_weights_probabilistic(initialization_bias.view(self.n_output_channels, 1), self.discrete_values),
-                                           requires_grad=True)
+            # this is a (discrete_values x n_output_channels x 1) tensor
+            self.b_logits = torch.nn.Parameter(
+                discretize_weights_probabilistic(initialization_bias.view(self.n_output_channels, 1), self.discrete_weight_values),
+                                                 requires_grad=True)
+        else:
+            self.b_logits = None
+        # checks input
+        self.input_type = ValueTypes(input_feature_types)
+
+    @staticmethod
+    def generate_weight_probabilities(logit_weights):
+        """
+        calculates the probabilities of all discrete weights for the logits provided
+
+        :param logit_weights: a tensor with dimensions (discrete_values x output_channels x input_channels x
+            kernel_rows x kernel_columns) with the discrete distribution as logits
+        :return:  a tensor with dimensions same dimensions as input with the discrete distribution as probabilities
+        """
+        weight_probabilities = torch.exp(logit_weights)
+        weight_probabilities = weight_probabilities / weight_probabilities.sum(dim=0)
+        return weight_probabilities
+
+    def get_gaussian_dist_parameters(self, logit_weights):
+        """
+        Fits a gaussian distribution to the logits in logit_weights.
+        :param logit_weights: a tensor with dimensions (discrete_values x output_channels x input_channels x
+            kernel_rows x kernel_columns) with the discrete distribution as logits if the distribution is over weights.
+            (discrete_values x output_channels x 1) if its over bias
+        :return: a tuple with the means of the gaussian distributions as a (output_channels x input_channels x
+            kernel_rows x kernel_columns) / (output_channels x 1) tensor
+            and a the standard deviations in a tensor of the same format for weights/bias
+        """
+        weight_probabilities = self.generate_weight_probabilities(logit_weights)
+        discrete_val_tensor = torch.zeros_like(logit_weights)
+        for inx, discrete_weight in enumerate(self.discrete_weight_values):
+            discrete_val_tensor[inx] = discrete_weight
+        discrete_val_tensor.requires_grad = True
+        weight_mean = discrete_val_tensor * weight_probabilities
+        weight_mean = weight_mean.sum(dim=0)
+
+        weight_var = weight_probabilities * torch.pow(discrete_val_tensor - weight_mean, 2)
+        weight_var = weight_var.sum(dim=0)
+        return weight_mean, weight_var
+
+    def forward(self, input_batch: torch.Tensor):
+        """
+
+        :param input_batch: a (sizebatch x in channels x num rows image x num col images) tensor if the values are real.
+         (sizebatch x 2 x in channels x num rows image x num col images) if the values are a distribution  where the
+          second dimension contains, in order, the mean and variance,  n is the number of samples and, in_feat is the
+          number of input features.
+        :return: tensor with dimensions (sizebatch x 2 x out channels x num rows image x num col images) where the
+            second dimension contains, in order, the mean and variance,  n is the number of samples and, out_feat is
+            the number of out features.
+
+        """
+
+        w_mean, w_var = self.get_gaussian_dist_parameters(self.W_logits)
+        # calculates padding
+        padding = math.floor(self.kernel_size[0]/2), math.floor(self.kernel_size[1]/2)
+
+        if self.input_type == ValueTypes.REAL:
+
+            out_mean = nn.functional.conv2d(input_batch, w_mean, stride=self.stride, padding=padding)
+            out_var = nn.functional.conv2d(torch.pow(input_batch, 2), w_var, stride=self.stride, padding=padding)
+            """
+            x_in = self._pad(self._input_layer.getTrainOutput())
+            x_out_mean = T.nnet.conv2d(x_in, self._W_mean, **self._conv_args)
+            x_out_var = T.nnet.conv2d(T.sqr(x_in), self._W_var, **self._conv_args)
+
+             if self._enable_bias:
+            
+            """
+        elif self.input_type == ValueTypes.GAUSSIAN:
+            in_mean = input_batch[:, 0, :, :, :]
+            in_var = input_batch[:, 1, :, :, :]
+
+            out_mean = nn.functional.conv2d(in_mean, w_mean, stride=self.stride, padding=padding)
+            out_var = nn.functional.conv2d(torch.pow(in_mean, 2), w_var, stride=self.stride, padding=padding) + \
+                    nn.functional.conv2d(in_var, torch.pow(w_mean, 2), stride=self.stride, padding=padding) + \
+                    nn.functional.conv2d(in_var, w_var, stride=self.stride, padding=padding)
+
+        else:
+            raise ValueError(f"no forward implementation for feature type : {self.input_type}")
+
+        if self.b_logits is not None:
+            # adding bias
+            b_mean, b_var = self.get_gaussian_dist_parameters(self.b_logits)
+            for out_channel_inx in range(b_mean.shape[0]):
+                out_mean[:, out_channel_inx, :, :] += b_mean[out_channel_inx, 0]  # broadcasting to all samples
+                out_var[:, out_channel_inx, :, :] += b_var[out_channel_inx, 0]
+            return torch.stack([out_mean, out_var], dim=1)
+
+
+if __name__ == "__main__":
+    test_weight_matrix = torch.rand((1, 1, 3, 3))*2 - 1
+    test_bias_matrix = torch.tensor([2.2])
+    test_samples = torch.rand(10, 1, 20, 20).double()  # 10 samples, 4 in dimensions
+    layer = LogitConv(1, ValueTypes.REAL, 1, (3, 3), 1,  test_weight_matrix, test_bias_matrix, [-2, -1, 0, 1, 2])
+    x = layer.forward(test_samples)
+    print(x.shape)
 
