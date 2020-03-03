@@ -92,7 +92,8 @@ class BaseModel(torch.nn.Module):
 
     def save_to_disk(self, stats, name: str, save_model=True):
         """Saves model's pickled class as pickle, the training metrics and a copy of the weight parameters as a pickle
-        to disk"""
+        to disk
+        :returns path to the folder containing the model and its metrics"""
         now = datetime.datetime.now()
         container_folder = os.path.join(model_path, name + f"-{now.year}-{now.month}-{now.day}"
                                                                     f"--h{now.hour}m{now.minute}")

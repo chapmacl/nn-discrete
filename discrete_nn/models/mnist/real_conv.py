@@ -30,13 +30,13 @@ class MnistReal(BaseModel):
         # defining all the network's layers
         self.netlayers = torch.nn.Sequential(
 
-            torch.nn.Conv2d(1, 32, 5, stride=1, bias=False),
+            torch.nn.Conv2d(1, 32, 5, stride=1, bias=False, padding=2),
             torch.nn.BatchNorm2d(32, momentum=0.1),
             torch.nn.Tanh(),
             torch.nn.MaxPool2d(2),
             #
             torch.nn.Dropout(p=0.2),
-            torch.nn.Conv2d(32, 64, 5, stride=1, bias=False),
+            torch.nn.Conv2d(32, 64, 5, stride=1, bias=False, padding=2),
             torch.nn.BatchNorm2d(64, momentum=0.1),
             torch.nn.Tanh(),
             torch.nn.MaxPool2d(2),

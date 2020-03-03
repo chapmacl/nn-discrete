@@ -94,23 +94,6 @@ class MnistTernaryTanh(BaseModel):
         :param method: sample or argmax
         :return:
         """
-
-        """
-        repr_dict = dict()
-        repr_dict["L1_Conv_W"] = internal_dict["netlayers.0.weight"]
-        repr_dict["L1_BatchNorm_W"] = internal_dict["netlayers.2.weight"]
-        repr_dict["L1_BatchNorm_b"] = internal_dict["netlayers.2.bias"]
-        repr_dict["L2_Conv_W"] = internal_dict["netlayers.5.weight"]
-        repr_dict["L2_BatchNorm_W"] = internal_dict["netlayers.8.weight"]
-        repr_dict["L2_BatchNorm_b"] = internal_dict["netlayers.8.bias"]
-        repr_dict["L3_Linear_W"] = internal_dict["netlayers.11.weight"]
-        repr_dict["L3_Linear_b"] = internal_dict["netlayers.11.bias"].reshape(-1, 1)
-        repr_dict["L3_BatchNorm_W"] = internal_dict["netlayers.15.weight"]
-        repr_dict["L3_BatchNorm_b"] = internal_dict["netlayers.15.bias"]
-        repr_dict["L4_Linear_W"] = internal_dict["netlayers.14.weight"]
-        repr_dict["L4_Linear_b"] = internal_dict["netlayers.14.bias"].reshape(-1, 1)"""
-
-
         # state dicts
         l1_layer: LogitConv = self.netlayers[0]
         l1_sampled_w, l1_sampled_b = l1_layer.generate_discrete_network(method)
