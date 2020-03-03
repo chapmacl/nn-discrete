@@ -66,6 +66,8 @@ class MnistReal(BaseModel):
         self.state_dict()["netlayers.6.bias"] = param_dict["L2_BatchNorm_b"]
         self.state_dict()["netlayers.11.weight"] = param_dict["L3_Linear_W"]
         self.state_dict()["netlayers.11.bias"] = param_dict["L3_Linear_b"].reshape(-1)
+        self.state_dict()["netlayers.12.weight"] = param_dict["L3_BatchNorm_W"]
+        self.state_dict()["netlayers.12.bias"] = param_dict["L3_BatchNorm_b"]
         self.state_dict()["netlayers.14.weight"] = param_dict["L4_Linear_W"]
         self.state_dict()["netlayers.14.bias"] = param_dict["L4_Linear_b"].reshape(-1)
 
@@ -82,6 +84,8 @@ class MnistReal(BaseModel):
         repr_dict["L2_BatchNorm_b"] = internal_dict["netlayers.6.bias"]
         repr_dict["L3_Linear_W"] = internal_dict["netlayers.11.weight"]
         repr_dict["L3_Linear_b"] = internal_dict["netlayers.11.bias"].reshape(-1, 1)
+        repr_dict["L3_BatchNorm_W"] = internal_dict["netlayers.12.weight"]
+        repr_dict["L3_BatchNorm_b"] = internal_dict["netlayers.12.bias"]
         repr_dict["L4_Linear_W"] = internal_dict["netlayers.14.weight"]
         repr_dict["L4_Linear_b"] = internal_dict["netlayers.14.bias"].reshape(-1, 1)
         return repr_dict

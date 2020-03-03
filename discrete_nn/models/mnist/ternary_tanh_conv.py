@@ -37,7 +37,7 @@ class MnistTernaryTanh(torch.nn.Module):
         super().__init__()
         self.netlayers = torch.nn.Sequential(
             LogitConv(1, ValueTypes.REAL, 32, 5, 1, real_model_params["L1_Conv_W"], None, DiscreteWeights.TERNARY),
-            #torch.nn.Conv2d(1, 32, 5, stride=1, bias=False),
+            # torch.nn.Conv2d(1, 32, 5, stride=1, bias=False),
             LocalReparametrization(),
             torch.nn.BatchNorm2d(32, momentum=0.1),
             torch.nn.Tanh(),
@@ -65,10 +65,12 @@ class MnistTernaryTanh(torch.nn.Module):
             LocalReparametrization(),
         )
 
-        #setting weihts of torch layers
-
-
-
+        self.state_dict()["netlayers.2.weight"] = real_model_params["L1_BatchNorm_W"]
+        self.state_dict()["netlayers.2.bias"] = real_model_params["L1_BatchNorm_b"]
+        self.state_dict()["netlayers.8.weight"] = real_model_params["L2_BatchNorm_W"]
+        self.state_dict()["netlayers.8.bias"] = real_model_params["L2_BatchNorm_b"]
+        self.state_dict()["netlayers.15.weight"] = real_model_params["L3_BatchNorm_W"]
+        self.state_dict()["netlayers.15.bias"] = real_model_params["L3_BatchNorm_b"]
 
     def forward(self, x):
         # takes image vector
@@ -109,7 +111,7 @@ def train_model():
     with open(model_path + "/mnist_conv_real.pickle", "rb") as f:
         real_model = pickle.load(f)
         real_param = real_model.get_net_parameters()
-    net = MnistPiTernaryTanh(real_param)
+    net = MnistTernaryTanh(real_param)
     net = net.to(device)
     optimizer = torch.optim.Adam(net.parameters(), lr=1e-3, weight_decay=1e-4)
 
