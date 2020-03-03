@@ -17,29 +17,26 @@ class LocalReparametrization(nn.Module):
         dimension contains, in order, the mean and variance,  n is the number of samples and, num_features
          is the number of out neurons."""
 
-        if self.input_type == ValueTypes.GAUSSIAN:
-            # sample from the normal distributions
-            if x.ndim == 3: # a 1d feature vector
-                x_mean = x[:, 0, :]
-                x_var = x[:, 1, :]
-            elif x.ndim == 5:  # a convolutional output
-                x_mean = x[:, 0, :, :, :]
-                x_var = x[:, 1, :, :, :]
-            else:
-                raise ValueError(f"x has invalid shape : {x.shape}")
-            ndist = Normal(torch.tensor([0.]), torch.tensor([1.]))
-            samples_unit_gaussian = ndist.sample(sample_shape=x_mean.shape).to(x.device)
-            # an extra dimension is added when samples are generated we need to remove it
-            if x.ndim == 3:  # a 1d feature vector
-                samples_unit_gaussian = samples_unit_gaussian[:, :, 0]
-            elif x.ndim == 5:  # a convolutional output
-                samples_unit_gaussian = samples_unit_gaussian[:, :, :, :, 0]
-            else:
-                raise ValueError(f"x has invalid shape : {x.shape}")
-            x_out = x_mean + torch.sqrt(x_var+self.sampling_epsilon)*samples_unit_gaussian
-            return x_out.float()
+        # sample from the normal distributions
+        if x.ndim == 3:  # a 1d feature vector
+            x_mean = x[:, 0, :]
+            x_var = x[:, 1, :]
+        elif x.ndim == 5:  # a convolutional output
+            x_mean = x[:, 0, :, :, :]
+            x_var = x[:, 1, :, :, :]
         else:
-            raise ValueError(f"unsupported input type {self.input_type}")
+            raise ValueError(f"x has invalid shape : {x.shape}")
+        ndist = Normal(torch.tensor([0.]), torch.tensor([1.]))
+        samples_unit_gaussian = ndist.sample(sample_shape=x_mean.shape).to(x.device)
+        # an extra dimension is added when samples are generated we need to remove it
+        if x.ndim == 3:  # a 1d feature vector
+            samples_unit_gaussian = samples_unit_gaussian[:, :, 0]
+        elif x.ndim == 5:  # a convolutional output
+            samples_unit_gaussian = samples_unit_gaussian[:, :, :, :, 0]
+        else:
+            raise ValueError(f"x has invalid shape : {x.shape}")
+        x_out = x_mean + torch.sqrt(x_var+self.sampling_epsilon)*samples_unit_gaussian
+        return x_out.float()
 
 
 if __name__ == "__main__":
