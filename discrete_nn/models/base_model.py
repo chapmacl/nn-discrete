@@ -49,7 +49,7 @@ class BaseModel(torch.nn.Module):
         stats["loss"].append(loss)
         stats["acc"].append(acc)
         stats["classification_report"].append(class_report_dict)
-        self.save_to_disk(stats, name, False)
+        #self.save_to_disk(stats, name, False)
 
     @staticmethod
     def _gen_stats(targets, predictions, losses):
