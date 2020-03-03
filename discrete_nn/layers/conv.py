@@ -235,7 +235,7 @@ class LogitConv(nn.Module):
             for out_channel_inx in range(b_mean.shape[0]):
                 out_mean[:, out_channel_inx, :, :] += b_mean[out_channel_inx, 0]  # broadcasting to all samples
                 out_var[:, out_channel_inx, :, :] += b_var[out_channel_inx, 0]
-            return torch.stack([out_mean, out_var], dim=1)
+        return torch.stack([out_mean, out_var], dim=1)
 
 
 if __name__ == "__main__":
