@@ -126,8 +126,8 @@ def train_model():
     net = net.to(device)
 
     num_epochs = 100
-    # will save metrics and model to disk
-    net.train_model(train_loader, validation_loader, test_loader, num_epochs, model_name="MNIST-real")
+    # will save metrics and model to disk. returns the path to metrics and saved model
+    return net.train_model(train_loader, validation_loader, test_loader, num_epochs, model_name="MNIST-real")
 
 
 if __name__ == "__main__":

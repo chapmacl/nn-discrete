@@ -107,6 +107,7 @@ class BaseModel(torch.nn.Module):
 
             with open(os.path.join(container_folder, f"{self.__class__.__name__}.param.pickle"), "wb") as f:
                 pickle.dump(self.get_net_parameters(), f)
+        return container_folder
 
     def train_model(self, training_dataset, validation_dataset, test_dataset, epochs, model_name,
                     evaluate_before_train: bool = False):
@@ -119,7 +120,7 @@ class BaseModel(torch.nn.Module):
         :param model_name: a name for the model (important for saving to disk)
         :param evaluate_before_train: if set, model will be evaluate before training (useful in the case of a logit
         model initialized with real weights). The untrained model will be saved to disk
-        :return:
+        :return: the path to the folder where metrics were saved
         """
 
         if evaluate_before_train:
@@ -161,7 +162,7 @@ class BaseModel(torch.nn.Module):
         stats["test_loss"] = test_loss
         stats["test_acc"] = test_acc
         stats["test_classification_report"] = test_class_report
-        self.save_to_disk(stats, f"{model_name}-trained")
+        return self.save_to_disk(stats, f"{model_name}-trained")
 
 
 class AlternateDiscretizationBaseModel(BaseModel):
