@@ -44,7 +44,7 @@ class MnistReal(BaseModel):
             #
             Flatten(),
             torch.nn.Dropout(p=0.3),
-            torch.nn.Linear(1024, 512),
+            torch.nn.Linear(3136, 512),
             torch.nn.BatchNorm1d(512, momentum=0.1),
             torch.nn.Tanh(),
             #

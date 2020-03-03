@@ -56,7 +56,7 @@ class MnistTernaryTanh(BaseModel):
             #
             Flatten(),
             torch.nn.Dropout(p=0.3),
-            TernaryLinear(1024, ValueTypes.REAL, 512, real_model_params["L3_Linear_W"],
+            TernaryLinear(3136, ValueTypes.REAL, 512, real_model_params["L3_Linear_W"],
                           real_model_params["L3_Linear_b"], normalize_activations=False),
             LocalReparametrization(),
             torch.nn.BatchNorm1d(512, momentum=0.1),
