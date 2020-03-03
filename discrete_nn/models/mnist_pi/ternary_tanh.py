@@ -24,7 +24,6 @@ if device == "cuda:0":
     torch.set_default_dtype(torch.Float16)
 
 
-
 class MnistPiTernaryTanh(BaseModel):
     """
     Real valued (non convolutionary) network for the mnist dataset
@@ -40,7 +39,7 @@ class MnistPiTernaryTanh(BaseModel):
         s1_l1_dropout = torch.nn.Dropout(p=0.1)
         s2_l1_linear = TernaryLinear(784, ValueTypes.REAL, 1200, real_model_params["L1_Linear_W"],
                                      real_model_params["L1_Linear_b"])
-        s3_l1_repar = LocalReparametrization(1200, ValueTypes.GAUSSIAN) # outputs a value and not a dist.
+        s3_l1_repar = LocalReparametrization(1200, ValueTypes.GAUSSIAN)  # outputs a value and not a dist.
         s4_l1_batchnorm = torch.nn.BatchNorm1d(1200, momentum=0.1)
         s5_l1_tanh = torch.nn.Tanh()
 
@@ -123,6 +122,7 @@ class MnistPiTernaryTanh(BaseModel):
         real_net.set_net_parameters(state_dict)
         return real_net
 
+
 class DatasetMNIST(Dataset):
     """
     Dataset for pytorch's DataLoader
@@ -171,7 +171,7 @@ def train_model():
     discrete_net.evaluate_and_save_to_disk(test_loader, "ex3.1_untrained_discretized_ternary_argmax")
     del discrete_net
     # evaluate first logit model before training, train and evaluate again
-    
+
     logit_net.train_model(train_loader, validation_loader, test_loader, 100, "logits_ternary_tanh", True)
 
     # discretizing trained logits net and evaluating
@@ -181,6 +181,7 @@ def train_model():
     discrete_net = logit_net.generate_discrete_networks("argmax")
     discrete_net = discrete_net.to(device)
     discrete_net.evaluate_and_save_to_disk(test_loader, "ex4.1_trained_discretized_ternary_argmax")
+
 
 if __name__ == "__main__":
     train_model()

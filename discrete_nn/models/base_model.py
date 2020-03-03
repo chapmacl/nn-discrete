@@ -13,6 +13,8 @@ import gc
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 if device == "cuda:0":
     torch.set_default_tensor_type(torch.cuda.FloatTensor)
+
+
 class BaseModel(torch.nn.Module):
     def __init__(self):
         super().__init__()
@@ -49,7 +51,7 @@ class BaseModel(torch.nn.Module):
         stats["loss"].append(loss)
         stats["acc"].append(acc)
         stats["classification_report"].append(class_report_dict)
-        #self.save_to_disk(stats, name, False)
+        # self.save_to_disk(stats, name, False)
 
     @staticmethod
     def _gen_stats(targets, predictions, losses):
@@ -85,15 +87,16 @@ class BaseModel(torch.nn.Module):
             batch_loss_train.append(float(loss))
             predictions += torch.nn.functional.softmax(net_output, dim=1).argmax(dim=1).tolist()
             targets += Y.tolist()
-        #print(f"training losses {batch_loss_train}")
+        # print(f"training losses {batch_loss_train}")
         return self._gen_stats(targets, predictions, batch_loss_train)
 
     def save_to_disk(self, stats, name: str, save_model=True):
         """Saves model's pickled class as pickle, the training metrics and a copy of the weight parameters as a pickle
         to disk"""
         now = datetime.datetime.now()
-        container_folder = os.path.join(model_path, self.__class__.__name__ + "-" + name + f"-{now.year}-{now.month}-{now.day}"
-                                                                    f"--h{now.hour}m{now.minute}")
+        container_folder = os.path.join(model_path,
+                                        self.__class__.__name__ + "-" + name + f"-{now.year}-{now.month}-{now.day}"
+                                                                               f"--h{now.hour}m{now.minute}")
         os.mkdir(container_folder)
 
         with open(os.path.join(container_folder, "metrics.json"), "w") as f:
@@ -130,7 +133,8 @@ class BaseModel(torch.nn.Module):
 
         for epoch_in in tqdm(range(epochs), desc="Training Network. Epoch:"):
             training_loss, training_acc, training_class_report = self._train_epoch(training_dataset)
-            training_loss_post_update, training_acc_post_update, training_class_report_post_update = self._evaluate(training_dataset)
+            training_loss_post_update, training_acc_post_update, training_class_report_post_update = self._evaluate(
+                training_dataset)
             # starting epochs evaluation
             validation_loss, validation_acc, validation_class_report = self._evaluate(validation_dataset)
 
@@ -164,6 +168,7 @@ class AlternateDiscretizationBaseModel(BaseModel):
     """
     This class is the base implementation of generic models which apply a discretization step during training
     """
+
     def __init__(self):
         super().__init__()
 
@@ -207,8 +212,8 @@ class AlternateDiscretizationBaseModel(BaseModel):
                 self.discretize()
             # starting epochs evaluation
             validation_loss, validation_acc, validation_class_report = self._evaluate(validation_dataset)
-            training_loss_post_update, training_acc_post_update, training_class_report_post_update = self._evaluate(training_dataset)
-
+            training_loss_post_update, training_acc_post_update, training_class_report_post_update = self._evaluate(
+                training_dataset)
 
             stats["training_loss"].append(training_loss)
             stats["training_acc"].append(training_acc)

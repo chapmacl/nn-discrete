@@ -14,7 +14,6 @@ from discrete_nn.models.base_model import AlternateDiscretizationBaseModel
 from discrete_nn.dataset.mnist import MNIST
 from discrete_nn.settings import model_path
 
-
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 if device == "cuda:0":
     torch.set_default_tensor_type(torch.cuda.FloatTensor)
@@ -94,8 +93,8 @@ class MnistPiAltDiscrete(AlternateDiscretizationBaseModel):
                     min = torch.min(data[x])
                     max = torch.max(data[x])
                     data[x] = 2 * ((data[x] - min) / (max - min)) - 1
-                    #data[x] = torch.round(data[x])     #Use this for Ternary
-                    data[x] = torch.round(data[x]/0.5)*0.5  #Use this for Quinary
+                    # data[x] = torch.round(data[x])     #Use this for Ternary
+                    data[x] = torch.round(data[x] / 0.5) * 0.5  # Use this for Quinary
         return
 
 
@@ -118,7 +117,6 @@ class DatasetMNIST(Dataset):
 
 
 def train_model():
-
     # basic dataset holder
     mnist = MNIST()
     # creates the dataloader for pytorch
@@ -136,7 +134,6 @@ def train_model():
 
     net.train_model(train_loader, validation_loader, test_loader, num_epochs, "test alternate disc")
     # todo check regularization
-
 
     real_model_param_path = os.path.join(model_path, "MnistPiReal-real-trained-2020-2-29--h11m44",
                                          "MnistPiReal.param.pickle")

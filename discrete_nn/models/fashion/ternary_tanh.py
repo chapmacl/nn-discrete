@@ -35,7 +35,7 @@ class FashionTernaryTanh(BaseModel):
         s1_l1_dropout = torch.nn.Dropout(p=0.1)
         s2_l1_linear = TernaryLinear(784, ValueTypes.REAL, 1200, real_model_params["L1_Linear_W"],
                                      real_model_params["L1_Linear_b"])
-        s3_l1_repar = LocalReparametrization(1200, ValueTypes.GAUSSIAN) # outputs a value and not a dist.
+        s3_l1_repar = LocalReparametrization(1200, ValueTypes.GAUSSIAN)  # outputs a value and not a dist.
         s4_l1_batchnorm = torch.nn.BatchNorm1d(1200, momentum=0.1)
         s5_l1_tanh = torch.nn.Tanh()
 
@@ -116,8 +116,8 @@ class FashionTernaryTanh(BaseModel):
         real_net.set_net_parameters(state_dict)
         return real_net
 
-def train_model(real_model_folder):
 
+def train_model(real_model_folder):
     batch_size = 100
     ToTensorMethod = ToTensor()
 
@@ -168,6 +168,7 @@ def train_model(real_model_folder):
     discrete_net = logit_net.generate_discrete_networks("argmax")
     discrete_net = discrete_net.to(device)
     discrete_net.evaluate_and_save_to_disk(test_loader, "ex4.1_trained_discretized_ternary_argmax")
+
 
 if __name__ == "__main__":
     train_model()
