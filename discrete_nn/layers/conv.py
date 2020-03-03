@@ -61,24 +61,27 @@ class LogitConv(nn.Module):
         flat_weight_distribution = discretize_weights_probabilistic(flat_weights, self.discrete_weight_values)
         # unflatten the kernel weights and set as parameters
 
-        # (discrete_values x output_channels x input_channels x kernel_rows x kernel_columns)
         self.W_logits = torch.nn.Parameter(flat_weight_distribution.view(len(self.discrete_weight_values),
                                                                          self.n_output_channels,
                                                                          self.n_input_channels, self.kernel_size[0],
                                                                          self.kernel_size[1]),
                                            requires_grad=True)
+        """a (discrete_values x output_channels x input_channels x kernel_rows x kernel_columns)"""
+
+        self.b_logits = None
+        """this is a (discrete_values x n_output_channels x 1) tensor or None"""
+
         if initialization_bias is not None:
             if initialization_bias.shape != torch.Size([self.n_output_channels]):
                 raise ValueError(f"initialization weights of invalid shape. Expected: "
                                  f"[{self.n_output_channels}]"
                                  f" but got: {initialization_bias.shape}")
 
-            # this is a (discrete_values x n_output_channels x 1) tensor
             self.b_logits = torch.nn.Parameter(
                 discretize_weights_probabilistic(initialization_bias.view(self.n_output_channels, 1), self.discrete_weight_values),
-                                                 requires_grad=True)
-        else:
-            self.b_logits = None
+                requires_grad=True)
+            """this is a (discrete_values x n_output_channels x 1) tensor or None"""
+
         # checks input
         self.input_type = ValueTypes(input_feature_types)
 
@@ -116,6 +119,73 @@ class LogitConv(nn.Module):
         weight_var = weight_probabilities * torch.pow(discrete_val_tensor - weight_mean, 2)
         weight_var = weight_var.sum(dim=0)
         return weight_mean, weight_var
+
+    def generate_discrete_network(self, method: str = "sample"):
+        """ generates discrete weights from the weights of the layer based on the weight distributions
+
+        :param method: the method to use to generate the discrete weights. Either argmax or sample
+
+        :returns: tuple (sampled_w, sampled_b) where sampled_w and sampled_b are tensors of the shapes
+        (output_channels x input_channels x kernel rows x kernel columns) and (output_features x 1). sampled_b is None if the layer has no bias
+        """
+        probabilities_w = self.generate_weight_probabilities(self.W_logits)
+        # logit probabilities must be in inner dimension for torch.distribution.Multinomial
+        # stepped transpose bc we need to keep the order of the other dimensions
+        probabilities_w = probabilities_w.transpose(0, 1).transpose(1, 2).transpose(2, 3).transpose(3, 4)
+        if self.b_logits is not None:
+            probabilities_b = self.generate_weight_probabilities(self.b_logits)
+            probabilities_b = probabilities_b.transpose(0, 1).transpose(1, 2)
+        else:
+            # layer does not use bias
+            probabilities_b = None
+        discrete_values_tensor = torch.tensor(self.discrete_weight_values).double()
+        discrete_values_tensor = discrete_values_tensor.to(self.W_logits.device)
+        if method == "sample":
+            # this is a output_channels x input_channels x kernel rows x kernel columns x discretization_levels mask
+            m_w = Multinomial(probs=probabilities_w)
+            sampled_w = m_w.sample()
+            if torch.all(sampled_w.sum(dim=4) != 1):
+                raise ValueError("sampled mask for weights does not sum to 1")
+
+            # need to generate the discrete weights from the masks
+            sampled_w = torch.matmul(sampled_w, discrete_values_tensor)
+
+            if probabilities_b:
+                # this is a output channels x 1 x discretization levels mask
+                m_b = Multinomial(probs=probabilities_b)
+                sampled_b = m_b.sample()
+
+                if torch.all(sampled_b.sum(dim=2) != 1):
+                    raise ValueError("sampled mask for bias does not sum to 1")
+                sampled_b = torch.matmul(sampled_b, discrete_values_tensor)
+            else:
+                sampled_b = None
+
+        elif method == "argmax":
+            # returns a (out_feat x in_feat) matrix where the values correspond to the index of the discretized value
+            # with the largest probability
+            argmax_w = torch.argmax(probabilities_w, dim=4)
+            # creating placeholder for discrete weights
+            sampled_w = torch.zeros_like(argmax_w).to("cpu")
+            sampled_w[:] = discrete_values_tensor[argmax_w[:]]
+
+            if probabilities_b:
+                argmax_b = torch.argmax(probabilities_b, dim=2)
+                sampled_b = torch.zeros_like(argmax_b).to("cpu")
+                sampled_b[:] = discrete_values_tensor[argmax_b[:]]
+            else:
+                sampled_b = None
+        else:
+            raise ValueError(f"Invalid method {method} for layer discretization")
+
+        # sanity checks
+        if sampled_w.shape != probabilities_w.shape[:-1]:
+            raise ValueError("sampled probability mask for weights does not match expected shape")
+        if sampled_b:
+            if sampled_b.shape != probabilities_b.shape[-1]:
+                raise ValueError("sampled probability mask for bias does not match expected shape")
+
+        return sampled_w, sampled_b
 
     def forward(self, input_batch: torch.Tensor):
         """
