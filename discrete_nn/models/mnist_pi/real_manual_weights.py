@@ -94,7 +94,8 @@ class MnistPiAltDiscrete(AlternateDiscretizationBaseModel):
                     min = torch.min(data[x])
                     max = torch.max(data[x])
                     data[x] = 2 * ((data[x] - min) / (max - min)) - 1
-                    data[x] = torch.round(data[x])
+                    #data[x] = torch.round(data[x])     #Use this for Ternary
+                    data[x] = torch.round(data[x]/0.5)*0.5  #Use this for Quinary
         return
 
 
