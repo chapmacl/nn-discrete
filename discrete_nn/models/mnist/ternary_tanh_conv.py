@@ -155,12 +155,11 @@ class DatasetMNIST(Dataset):
     def __getitem__(self, item_inx):
         return self.x[item_inx], self.y[item_inx]
 
-
-def train_model():
+def train_model(real_model_folder):
+    batch_size = 100
     # basic dataset holder
     mnist = MNIST()
     # creates the dataloader for pytorch
-    batch_size = 100
     train_loader = DataLoader(dataset=DatasetMNIST(mnist.x_train, mnist.y_train), batch_size=batch_size,
                               shuffle=True)
     validation_loader = DataLoader(dataset=DatasetMNIST(mnist.x_val, mnist.y_val), batch_size=batch_size,
@@ -168,76 +167,35 @@ def train_model():
     test_loader = DataLoader(dataset=DatasetMNIST(mnist.x_test, mnist.y_test), batch_size=batch_size,
                              shuffle=False)
 
-    with open(model_path + "/mnist_conv_real.pickle", "rb") as f:
-        real_model = pickle.load(f)
-        real_param = real_model.get_net_parameters()
-    net = MnistTernaryTanh(real_param)
-    net = net.to(device)
-    optimizer = torch.optim.Adam(net.parameters(), lr=1e-3, weight_decay=1e-4)
+    print('Using device:', device)
 
-    loss_fc = torch.nn.CrossEntropyLoss()
-    # todo check regularization
+    real_model_param_path = os.path.join(model_path, real_model_folder,
+                                         "MnistReal.param.pickle")
+    with open(real_model_param_path, "rb") as f:
+        real_param = pickle.load(f)
+        logit_net = MnistTernaryTanh(real_param)
+    logit_net = logit_net.to(device)
+    # discretizing and evaluating
+    # todo should probably generate several sampled ones?
+    discrete_net = logit_net.generate_discrete_networks("sample")
+    discrete_net = discrete_net.to(device)
+    discrete_net.evaluate_and_save_to_disk(test_loader, "MNIST-ex3.1_untrained_discretized_ternary_sample")
+    discrete_net = logit_net.generate_discrete_networks("argmax")
+    discrete_net = discrete_net.to(device)
+    discrete_net.evaluate_and_save_to_disk(test_loader, "MNIST-ex3.1_untrained_discretized_ternary_argmax")
+    del discrete_net
+    # evaluate first logit model before training, train and evaluate again
 
-    num_epochs = 200
+    logit_net.train_model(train_loader, validation_loader, test_loader, 100, "MNIST-Ternary", True)
 
-    epochs_train_error = []
-    epochs_validation_error = []
-
-    for epoch_in in tqdm.tqdm(range(num_epochs), desc="epoch"):
-        net.train()
-        batch_loss_train = []
-        # training part of epoch
-        for batch_inx, (X, Y) in tqdm.tqdm(enumerate(train_loader), desc="batch"):
-            optimizer.zero_grad()  # reset gradients from previous iteration
-            # do forward pass
-            net_output = net(X)
-            # compute loss
-            loss = loss_fc(net_output, Y)
-            # backward propagate loss
-            loss.backward()
-            optimizer.step()
-            tqdm.tqdm.write(f"loss {loss}")
-            batch_loss_train.append(loss.item())
-        epochs_train_error.append(np.mean(batch_loss_train))
-
-        # starting epochs evaluation
-        net.eval()
-        validation_losses = []
-
-        # disables gradient calculation since it is not needed
-        with torch.no_grad():
-            for batch_inx, (X, Y) in enumerate(validation_loader):
-                outputs = net(X)
-                loss = loss_fc(outputs, Y)
-                validation_losses.append(loss)
-        epochs_validation_error.append(torch.mean(torch.stack(validation_losses)))
-        print(f"epoch {epoch_in + 1}/{num_epochs} "
-              f"train loss: {epochs_train_error[-1]:.4f} / "
-              f"validation loss: {epochs_validation_error[-1]:.4f}")
-
-    with open(os.path.join(model_path, "mnist_pi_ternary_tanh.pickle"), "wb") as f:
-        pickle.dump(net, f)
-
-    # test network
-    test_losses = []
-    targets = []
-    predictions = []
-    # disables gradient calculation since it is not needed
-    with torch.no_grad():
-        for batch_inx, (X, Y) in enumerate(test_loader):
-            outputs = net(X)
-            loss = loss_fc(outputs, Y)
-            test_losses.append(loss.item())
-
-            output_probs = torch.nn.functional.softmax(outputs, dim=1)
-            output_labels = output_probs.argmax(dim=1)
-            predictions += output_labels.tolist()
-            targets += Y.tolist()
-
-    print(f"test accuracy : {accuracy_score(targets, predictions)}")
-    print(f"test cross entropy loss:{np.mean(test_losses)}")
+    # discretizing trained logits net and evaluating
+    discrete_net = logit_net.generate_discrete_networks("sample")
+    discrete_net = discrete_net.to(device)
+    discrete_net.evaluate_and_save_to_disk(test_loader, "MNIST-ex4.1_trained_discretized_ternary_sample")
+    discrete_net = logit_net.generate_discrete_networks("argmax")
+    discrete_net = discrete_net.to(device)
+    discrete_net.evaluate_and_save_to_disk(test_loader, "MNIST-ex4.1_trained_discretized_ternary_argmax")
 
 
 if __name__ == "__main__":
-    print('Using device:', device)
     train_model()
