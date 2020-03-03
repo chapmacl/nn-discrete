@@ -165,22 +165,22 @@ def train_model():
     # todo should probably generate several sampled ones?
     discrete_net = logit_net.generate_discrete_networks("sample")
     discrete_net = discrete_net.to(device)
-    discrete_net.evaluate_and_save_to_disk(test_loader, "ex3.1_untrained_discretized_ternary_sample")
+    discrete_net.evaluate_and_save_to_disk(test_loader, "MNIST-Pi-ex3.1_untrained_discretized_ternary_sample")
     discrete_net = logit_net.generate_discrete_networks("argmax")
     discrete_net = discrete_net.to(device)
-    discrete_net.evaluate_and_save_to_disk(test_loader, "ex3.1_untrained_discretized_ternary_argmax")
+    discrete_net.evaluate_and_save_to_disk(test_loader, "MNIST-Pi-ex3.1_untrained_discretized_ternary_argmax")
     del discrete_net
     # evaluate first logit model before training, train and evaluate again
     
-    logit_net.train_model(train_loader, validation_loader, test_loader, 100, "logits_ternary_tanh", True)
+    logit_net.train_model(train_loader, validation_loader, test_loader, 100, "MNIST-Pi-Real", True)
 
     # discretizing trained logits net and evaluating
     discrete_net = logit_net.generate_discrete_networks("sample")
     discrete_net = discrete_net.to(device)
-    discrete_net.evaluate_and_save_to_disk(test_loader, "ex4.1_trained_discretized_ternary_sample")
+    discrete_net.evaluate_and_save_to_disk(test_loader, "MNIST-Pi-ex4.1_trained_discretized_ternary_sample")
     discrete_net = logit_net.generate_discrete_networks("argmax")
     discrete_net = discrete_net.to(device)
-    discrete_net.evaluate_and_save_to_disk(test_loader, "ex4.1_trained_discretized_ternary_argmax")
+    discrete_net.evaluate_and_save_to_disk(test_loader, "MNIST-Pi-ex4.1_trained_discretized_ternary_argmax")
 
 if __name__ == "__main__":
     train_model()

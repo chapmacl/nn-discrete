@@ -114,7 +114,7 @@ def train_model():
 
     num_epochs = 200
     # will save metrics and model to disk
-    net.train_model(train_loader, validation_loader, test_loader, num_epochs, model_name="real")
+    net.train_model(train_loader, validation_loader, test_loader, num_epochs, model_name="MNIST-pi-real")
 
 if __name__ == "__main__":
     print('Using device:', device)
