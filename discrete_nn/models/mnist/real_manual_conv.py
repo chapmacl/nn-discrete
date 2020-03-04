@@ -93,7 +93,7 @@ class MnistAlternateDiscreteConv(AlternateDiscretizationBaseModel):
     def discretize(self):
         # Manually adjust the weights
         modules = self._modules["netlayers"]._modules
-        layerIndices = ["1", "5", "9"]
+        layerIndices = ["0", "5", "11", "14"]
         for mod in layerIndices:
             layer = modules[str(mod)]
             if hasattr(layer, "weight"):
