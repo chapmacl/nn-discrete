@@ -37,8 +37,10 @@ class BaseModel(torch.nn.Module):
         with torch.no_grad():
             gc.collect()
             for batch_inx, (X, Y) in enumerate(dataset_generator):
+                X = X.to(device)
                 outputs = self(X)
-                outputs.to(self.device)
+                outputs = outputs.to(self.device)
+                Y = Y.to(device)
                 loss = self.loss_funct(outputs, Y)
                 validation_losses.append(float(loss))
                 predictions += torch.nn.functional.softmax(outputs, dim=1).argmax(dim=1).tolist()
@@ -51,7 +53,7 @@ class BaseModel(torch.nn.Module):
         stats["loss"].append(loss)
         stats["acc"].append(acc)
         stats["classification_report"].append(class_report_dict)
-        # self.save_to_disk(stats, name, False)
+        self.save_to_disk(stats, name, False)
 
     @staticmethod
     def _gen_stats(targets, predictions, losses):
@@ -76,6 +78,7 @@ class BaseModel(torch.nn.Module):
         # training part of epoch
         for batch_inx, (X, Y) in enumerate(dataset_generator):
             gc.collect()
+            Y = Y.to(device)
             self.optimizer.zero_grad()  # reset gradients from previous iteration
             # do forward pass
             net_output = self(X)
