@@ -37,8 +37,10 @@ class BaseModel(torch.nn.Module):
         with torch.no_grad():
             gc.collect()
             for batch_inx, (X, Y) in enumerate(dataset_generator):
+                X = X.to(device)
                 outputs = self(X)
-                outputs.to(self.device)
+                outputs = outputs.to(self.device)
+                Y = Y.to(device)
                 loss = self.loss_funct(outputs, Y)
                 validation_losses.append(float(loss))
                 predictions += torch.nn.functional.softmax(outputs, dim=1).argmax(dim=1).tolist()
@@ -51,7 +53,7 @@ class BaseModel(torch.nn.Module):
         stats["loss"].append(loss)
         stats["acc"].append(acc)
         stats["classification_report"].append(class_report_dict)
-        # self.save_to_disk(stats, name, False)
+        self.save_to_disk(stats, name, False)
 
     @staticmethod
     def _gen_stats(targets, predictions, losses):
@@ -76,6 +78,7 @@ class BaseModel(torch.nn.Module):
         # training part of epoch
         for batch_inx, (X, Y) in enumerate(dataset_generator):
             gc.collect()
+            Y = Y.to(device)
             self.optimizer.zero_grad()  # reset gradients from previous iteration
             # do forward pass
             net_output = self(X)
@@ -92,7 +95,8 @@ class BaseModel(torch.nn.Module):
 
     def save_to_disk(self, stats, name: str, save_model=True):
         """Saves model's pickled class as pickle, the training metrics and a copy of the weight parameters as a pickle
-        to disk"""
+        to disk
+        :returns path to the folder containing the model and its metrics"""
         now = datetime.datetime.now()
         container_folder = os.path.join(model_path, name + f"-{now.year}-{now.month}-{now.day}"
                                                                     f"--h{now.hour}m{now.minute}")
@@ -107,6 +111,7 @@ class BaseModel(torch.nn.Module):
 
             with open(os.path.join(container_folder, f"{self.__class__.__name__}.param.pickle"), "wb") as f:
                 pickle.dump(self.get_net_parameters(), f)
+        return container_folder
 
     def train_model(self, training_dataset, validation_dataset, test_dataset, epochs, model_name,
                     evaluate_before_train: bool = False):
@@ -119,7 +124,7 @@ class BaseModel(torch.nn.Module):
         :param model_name: a name for the model (important for saving to disk)
         :param evaluate_before_train: if set, model will be evaluate before training (useful in the case of a logit
         model initialized with real weights). The untrained model will be saved to disk
-        :return:
+        :return: the path to the folder where metrics were saved
         """
 
         if evaluate_before_train:
@@ -161,7 +166,7 @@ class BaseModel(torch.nn.Module):
         stats["test_loss"] = test_loss
         stats["test_acc"] = test_acc
         stats["test_classification_report"] = test_class_report
-        self.save_to_disk(stats, f"{model_name}-trained")
+        return self.save_to_disk(stats, f"{model_name}-trained")
 
 
 class AlternateDiscretizationBaseModel(BaseModel):

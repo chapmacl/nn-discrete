@@ -30,13 +30,13 @@ class MnistReal(BaseModel):
         # defining all the network's layers
         self.netlayers = torch.nn.Sequential(
 
-            torch.nn.Conv2d(1, 32, 5, stride=1, bias=False),
+            torch.nn.Conv2d(1, 32, 5, stride=1, bias=False, padding=2),
             torch.nn.BatchNorm2d(32, momentum=0.1),
             torch.nn.Tanh(),
             torch.nn.MaxPool2d(2),
             #
             torch.nn.Dropout(p=0.2),
-            torch.nn.Conv2d(32, 64, 5, stride=1, bias=False),
+            torch.nn.Conv2d(32, 64, 5, stride=1, bias=False, padding=2),
             torch.nn.BatchNorm2d(64, momentum=0.1),
             torch.nn.Tanh(),
             torch.nn.MaxPool2d(2),
@@ -44,7 +44,7 @@ class MnistReal(BaseModel):
             #
             Flatten(),
             torch.nn.Dropout(p=0.3),
-            torch.nn.Linear(1024, 512),
+            torch.nn.Linear(3136, 512),
             torch.nn.BatchNorm1d(512, momentum=0.1),
             torch.nn.Tanh(),
             #
@@ -125,9 +125,9 @@ def train_model():
     net = MnistReal()
     net = net.to(device)
 
-    num_epochs = 100
-    # will save metrics and model to disk
-    net.train_model(train_loader, validation_loader, test_loader, num_epochs, model_name="MNIST-real")
+    num_epochs = 50
+    # will save metrics and model to disk. returns the path to metrics and saved model
+    return net.train_model(train_loader, validation_loader, test_loader, num_epochs, model_name="MNIST-real-conv")
 
 
 if __name__ == "__main__":

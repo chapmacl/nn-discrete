@@ -130,7 +130,7 @@ def train_model():
 
     net = MnistPiAltDiscrete()
     net = net.to(device)
-    num_epochs = 200
+    num_epochs = 100
 
     net.train_model(train_loader, validation_loader, test_loader, num_epochs, "test alternate disc")
     # todo check regularization

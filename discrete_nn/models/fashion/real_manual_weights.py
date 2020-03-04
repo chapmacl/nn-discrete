@@ -98,8 +98,7 @@ def train_model():
         return ToTensorMethod(pil_image).reshape(-1).to(device)
 
     def transform_target(target):
-        target = target.to(device)
-        return target.clone().detach()
+        return torch.tensor(target)
 
     mnist_fashion_path = os.path.join(dataset_path, "fashion")
 
@@ -122,7 +121,7 @@ def train_model():
 
     num_epochs = 100
     # will save metrics and model to disk
-    net.train_model(train_loader, validation_loader, test_loader, num_epochs, "real")
+    net.train_model(train_loader, validation_loader, test_loader, num_epochs, "fashion alternate_discretization")
 
 
 if __name__ == "__main__":

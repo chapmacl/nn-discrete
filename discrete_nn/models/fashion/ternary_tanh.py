@@ -73,9 +73,11 @@ class FashionTernaryTanh(BaseModel):
         self.state_dict()['netlayers.8.bias'][:] = real_model_params["L2_BatchNorm_b"]
         self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-3, weight_decay=1e-8)
         self.loss_funct = torch.nn.CrossEntropyLoss()
+        self.device = device
 
     def forward(self, x):
         # takes image vector
+        x = x.to(device)
         return self.netlayers(x)
 
     def get_net_parameters(self):
@@ -112,7 +114,7 @@ class FashionTernaryTanh(BaseModel):
             "L3_Linear_b": l3_sampled_b
         }
 
-        real_net = MnistPiReal()
+        real_net = MnistPiReal().to(device)
         real_net.set_net_parameters(state_dict)
         return real_net
 
