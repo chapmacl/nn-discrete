@@ -10,6 +10,7 @@ import os
 import pickle
 from sklearn.metrics import accuracy_score
 
+from discrete_nn.models.base_model import BaseModel
 from discrete_nn.dataset.mnist import MNIST
 from discrete_nn.settings import model_path
 from discrete_nn.layers.Flatten import Flatten
@@ -19,7 +20,7 @@ if device == "cuda:0":
     torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
 
-class MnistReal(torch.nn.Module):
+class MnistReal(BaseModel):
     """
     Real valued (non convolutionary) network for the mnist dataset
     """
@@ -29,13 +30,13 @@ class MnistReal(torch.nn.Module):
         # defining all the network's layers
         self.netlayers = torch.nn.Sequential(
 
-            torch.nn.Conv2d(1, 32, 5, stride=1),
+            torch.nn.Conv2d(1, 32, 5, stride=1, bias=False, padding=2),
             torch.nn.BatchNorm2d(32, momentum=0.1),
             torch.nn.Tanh(),
             torch.nn.MaxPool2d(2),
             #
             torch.nn.Dropout(p=0.2),
-            torch.nn.Conv2d(32, 64, 5, stride=1),
+            torch.nn.Conv2d(32, 64, 5, stride=1, bias=False, padding=2),
             torch.nn.BatchNorm2d(64, momentum=0.1),
             torch.nn.Tanh(),
             torch.nn.MaxPool2d(2),
@@ -43,18 +44,34 @@ class MnistReal(torch.nn.Module):
             #
             Flatten(),
             torch.nn.Dropout(p=0.3),
-            torch.nn.Linear(1024, 512),
+            torch.nn.Linear(3136, 512),
             torch.nn.BatchNorm1d(512, momentum=0.1),
             torch.nn.Tanh(),
             #
             torch.nn.Linear(512, 10)
         )
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-3, weight_decay=1e-4)
+        self.loss_funct = torch.nn.CrossEntropyLoss()
 
     def forward(self, x):
         # takes image vector
         return self.netlayers(x)
 
-    def training_parameters(self):
+    def set_net_parameters(self, param_dict):
+        self.state_dict()["netlayers.0.weight"] = param_dict["L1_Conv_W"]
+        self.state_dict()["netlayers.1.weight"] = param_dict["L1_BatchNorm_W"]
+        self.state_dict()["netlayers.1.bias"] = param_dict["L1_BatchNorm_b"]
+        self.state_dict()["netlayers.5.weight"] = param_dict["L2_Conv_W"]
+        self.state_dict()["netlayers.6.weight"] = param_dict["L2_BatchNorm_W"]
+        self.state_dict()["netlayers.6.bias"] = param_dict["L2_BatchNorm_b"]
+        self.state_dict()["netlayers.11.weight"] = param_dict["L3_Linear_W"]
+        self.state_dict()["netlayers.11.bias"] = param_dict["L3_Linear_b"].reshape(-1)
+        self.state_dict()["netlayers.12.weight"] = param_dict["L3_BatchNorm_W"]
+        self.state_dict()["netlayers.12.bias"] = param_dict["L3_BatchNorm_b"]
+        self.state_dict()["netlayers.14.weight"] = param_dict["L4_Linear_W"]
+        self.state_dict()["netlayers.14.bias"] = param_dict["L4_Linear_b"].reshape(-1)
+
+    def get_net_parameters(self):
         """:returns a dictionary with the trainable parameters"""
         internal_dict = {name: value for name, value in self.named_parameters()}
 
@@ -67,6 +84,8 @@ class MnistReal(torch.nn.Module):
         repr_dict["L2_BatchNorm_b"] = internal_dict["netlayers.6.bias"]
         repr_dict["L3_Linear_W"] = internal_dict["netlayers.11.weight"]
         repr_dict["L3_Linear_b"] = internal_dict["netlayers.11.bias"].reshape(-1, 1)
+        repr_dict["L3_BatchNorm_W"] = internal_dict["netlayers.12.weight"]
+        repr_dict["L3_BatchNorm_b"] = internal_dict["netlayers.12.bias"]
         repr_dict["L4_Linear_W"] = internal_dict["netlayers.14.weight"]
         repr_dict["L4_Linear_b"] = internal_dict["netlayers.14.bias"].reshape(-1, 1)
         return repr_dict
@@ -91,7 +110,6 @@ class DatasetMNIST(Dataset):
         return self.x[item_inx], self.y[item_inx]
 
 
-
 def train_model():
     # basic dataset holder
     mnist = MNIST()
@@ -106,71 +124,12 @@ def train_model():
 
     net = MnistReal()
     net = net.to(device)
-    optimizer = torch.optim.Adam(net.parameters(), lr=1e-3, weight_decay=1e-4)
 
-    loss_fc = torch.nn.CrossEntropyLoss()
-    # todo check regularization
-
-    num_epochs = 200
-
-    epochs_train_error = []
-    epochs_validation_error = []
-
-    for epoch_in in range(num_epochs):
-        net.train()
-        batch_loss_train = []
-        # training part of epoch
-        for batch_inx, (X, Y) in enumerate(train_loader):
-            optimizer.zero_grad()  # reset gradients from previous iteration
-            # do forward pass
-            net_output = net(X)
-            # compute loss
-            loss = loss_fc(net_output, Y)
-            # backward propagate loss
-            loss.backward()
-            optimizer.step()
-            batch_loss_train.append(loss.item())
-        epochs_train_error.append(np.mean(batch_loss_train))
-
-        # starting epochs evaluation
-        net.eval()
-        validation_losses = []
-
-        # disables gradient calculation since it is not needed
-        with torch.no_grad():
-            for batch_inx, (X, Y) in enumerate(validation_loader):
-                outputs = net(X)
-                loss = loss_fc(outputs, Y)
-                validation_losses.append(loss)
-        epochs_validation_error.append(torch.mean(torch.stack(validation_losses)))
-        print(f"epoch {epoch_in + 1}/{num_epochs} "
-              f"train loss: {epochs_train_error[-1]:.4f} / "
-              f"validation loss: {epochs_validation_error[-1]:.4f}")
-
-        with open(os.path.join(model_path, "mnist_conv_real.pickle"), "wb") as f:
-            pickle.dump(net, f)
-
-    # test network
-    test_losses = []
-    targets = []
-    predictions = []
-    # disables gradient calculation since it is not needed
-    with torch.no_grad():
-        for batch_inx, (X, Y) in enumerate(test_loader):
-            outputs = net(X)
-            loss = loss_fc(outputs, Y)
-            test_losses.append(loss.item())
-
-            output_probs = torch.nn.functional.softmax(outputs, dim=1)
-            output_labels = output_probs.argmax(dim=1)
-            predictions += output_labels.tolist()
-            targets += Y.tolist()
-
-    print(f"test accuracy : {accuracy_score(targets, predictions)}")
-    print(f"test cross entropy loss:{np.mean(test_losses)}")
+    num_epochs = 100
+    # will save metrics and model to disk. returns the path to metrics and saved model
+    return net.train_model(train_loader, validation_loader, test_loader, num_epochs, model_name="MNIST-real")
 
 
 if __name__ == "__main__":
     print('Using device:', device)
-    print(MnistReal())
     train_model()

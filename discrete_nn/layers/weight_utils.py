@@ -94,7 +94,7 @@ def discretize_weights_probabilistic(real_weights: Tensor, discrete_weight_value
         # sort indices
 
         position_per_value = torch.zeros_like(weight_row, dtype=torch.float64)
-        position_per_value[sort_indices] = torch.tensor(list(range(num_weights))).double().to("cuda:0") + 1.0
+        position_per_value[sort_indices] = torch.tensor(list(range(num_weights))).double().to(weight_row.device) + 1.0
         cdf = position_per_value / num_weights
 
         return cdf
@@ -113,7 +113,7 @@ def discretize_weights_probabilistic(real_weights: Tensor, discrete_weight_value
     # weight_cdf = weight_cdf.reshape(real_weights.shape)
 
     # we use shayers discretization method with the shifted weights
-    shayers_discretized = discretize_weights_shayer(weight_cdf)
+    shayers_discretized = discretize_weights_shayer(weight_cdf, discrete_weight_values)
 
     # we need to have log-probabilities
     shayers_discretized = torch.log(shayers_discretized)

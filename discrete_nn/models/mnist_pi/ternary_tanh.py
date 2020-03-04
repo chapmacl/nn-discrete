@@ -12,7 +12,7 @@ from sklearn.metrics import accuracy_score, classification_report
 
 from discrete_nn.dataset.mnist import MNIST
 from discrete_nn.settings import model_path
-from discrete_nn.layers.types import ValueTypes
+from discrete_nn.layers.type_defs import ValueTypes
 from discrete_nn.layers.logit_linear import TernaryLinear
 from discrete_nn.layers.local_reparametrization import LocalReparametrization
 from discrete_nn.models.mnist_pi.real import MnistPiReal

@@ -1,7 +1,7 @@
 """
 Implements different linear layer classes by extending from torch.nn.Module
 """
-from discrete_nn.layers.types import ValueTypes
+from discrete_nn.layers.type_defs import ValueTypes
 from discrete_nn.layers.weight_utils import discretize_weights_probabilistic
 
 from torch import nn
