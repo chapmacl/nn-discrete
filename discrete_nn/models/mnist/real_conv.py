@@ -125,9 +125,9 @@ def train_model():
     net = MnistReal()
     net = net.to(device)
 
-    num_epochs = 100
+    num_epochs = 50
     # will save metrics and model to disk. returns the path to metrics and saved model
-    return net.train_model(train_loader, validation_loader, test_loader, num_epochs, model_name="MNIST-real")
+    return net.train_model(train_loader, validation_loader, test_loader, num_epochs, model_name="MNIST-real-conv")
 
 
 if __name__ == "__main__":

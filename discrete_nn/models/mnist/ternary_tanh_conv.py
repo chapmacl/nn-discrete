@@ -141,6 +141,7 @@ class DatasetMNIST(Dataset):
     def __getitem__(self, item_inx):
         return self.x[item_inx], self.y[item_inx]
 
+
 def train_model(real_model_folder):
     batch_size = 100
     # basic dataset holder
@@ -172,16 +173,16 @@ def train_model(real_model_folder):
     del discrete_net
     # evaluate first logit model before training, train and evaluate again
 
-    logit_net.train_model(train_loader, validation_loader, test_loader, 100, "MNIST-Ternary", True)
+    logit_net.train_model(train_loader, validation_loader, test_loader, 100, "MNIST-Ternary-conv", True)
 
     # discretizing trained logits net and evaluating
     discrete_net = logit_net.generate_discrete_networks("sample")
     discrete_net = discrete_net.to(device)
-    discrete_net.evaluate_and_save_to_disk(test_loader, "MNIST-ex4.1_trained_discretized_ternary_sample")
+    discrete_net.evaluate_and_save_to_disk(test_loader, "MNIST-ex4.1_trained_discretized_ternary_sample-conv")
     discrete_net = logit_net.generate_discrete_networks("argmax")
     discrete_net = discrete_net.to(device)
-    discrete_net.evaluate_and_save_to_disk(test_loader, "MNIST-ex4.1_trained_discretized_ternary_argmax")
+    discrete_net.evaluate_and_save_to_disk(test_loader, "MNIST-ex4.1_trained_discretized_ternary_argmax-conv")
 
 
 if __name__ == "__main__":
-    train_model()
+    train_model("MNIST-real-conv-trained-2020-3-4--h11m53")
