@@ -121,7 +121,7 @@ def train_model():
 
     num_epochs = 100
     # will save metrics and model to disk
-    net.train_model(train_loader, validation_loader, test_loader, num_epochs, "real")
+    net.train_model(train_loader, validation_loader, test_loader, num_epochs, "fashion alternate_discretization")
 
 
 if __name__ == "__main__":
