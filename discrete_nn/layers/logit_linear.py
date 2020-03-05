@@ -42,7 +42,7 @@ class LogitLinear(nn.Module):
         if self.device == "cuda:0":
             torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
-    def generate_discrete_network(self, method:str = "sample"):
+    def generate_discrete_network(self, method: str = "sample"):
         """ generates discrete weights from the weights of the layer based on the weight distributions
 
         :param method: the method to use to generate the discrete weights. Either argmax or sample
@@ -141,9 +141,6 @@ class LogitLinear(nn.Module):
         dimension contains, in order,
         the mean and variance,  n is the number of samples and, out_feat is the number of out features.
         """
-        output_mean = None
-        output_var = None
-
         w_mean, w_var = self.get_gaussian_dist_parameters(self.W_logits)
         b_mean, b_var = self.get_gaussian_dist_parameters(self.b_logits)
         # print(f"maximum abs logit weight {self.W_logits.abs().max()}")
@@ -162,7 +159,7 @@ class LogitLinear(nn.Module):
             x_var = x_var.transpose(1, 0)
             output_mean = torch.mm(w_mean, x_mean)
             output_var = torch.mm(torch.pow(x_mean, 2), w_var) + torch.mm(x_var, torch.pow(w_mean, 2)) + \
-                         torch.mm(x_var, w_var)
+                torch.mm(x_var, w_var)
         else:
             raise ValueError(f"The type {self.in_feat_type} given for the input type of layer is invalid")
         # need to return the matrix back to the original axis layout by transposing again
@@ -204,9 +201,8 @@ if __name__ == "__main__":
     test_bias_matrix = torch.tensor([[2.1, 0.3, -0.5]])
     test_samples = torch.rand(10, 4).double()  # 10 samples, 4 in dimensions
     layer = LogitLinear(4, ValueTypes.REAL, 3, test_weight_matrix, test_bias_matrix, [-2, -1, 0, 1, 2])
-    x = layer.forward(test_samples)
-    print(x.shape)
+    x_out = layer.forward(test_samples)
+    print(x_out.shape)
     # discretizing weights
     print("sampled discrete network", layer.generate_discrete_network("sample"))
     print("argmax discrete network", layer.generate_discrete_network("argmax"))
-
