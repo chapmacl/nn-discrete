@@ -149,15 +149,15 @@ def train_model(real_model_folder):
     batch_size = 100
     ToTensorMethod = ToTensor()
 
-    def flatten_image(pil_image):
-        return ToTensorMethod(pil_image).reshape(-1).to(device)
+    def transform_input(pil_image):
+        return ToTensorMethod(pil_image).to(device)
 
     def transform_target(target):
         return torch.tensor(target).to(device)
 
     from discrete_nn.settings import dataset_path
     mnist_fashion_path = os.path.join(dataset_path, "fashion")
-    train_val_dataset = FashionMNIST(mnist_fashion_path, download=True, train=True, transform=flatten_image,
+    train_val_dataset = FashionMNIST(mnist_fashion_path, download=True, train=True, transform=transform_input,
                                      target_transform=transform_target)
 
     train_size = int(len(train_val_dataset) * 0.8)
