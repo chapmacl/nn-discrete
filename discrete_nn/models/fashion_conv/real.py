@@ -124,8 +124,7 @@ def train_model():
         return ToTensorMethod(pil_image).reshape(-1).to(device)
 
     def transform_target(target):
-        target = target.to(device)
-        return target.clone().detach()
+        return torch.tensor(target).to(device)
 
     from discrete_nn.settings import dataset_path
     import os
