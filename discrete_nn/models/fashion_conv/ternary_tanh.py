@@ -166,7 +166,7 @@ def train_model(real_model_folder):
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     validation_loader = DataLoader(validation_dataset, batch_size=batch_size)
 
-    test_loader = DataLoader(FashionMNIST(mnist_fashion_path, download=True, train=False, transform=flatten_image,
+    test_loader = DataLoader(FashionMNIST(mnist_fashion_path, download=True, train=False, transform=transform_input,
                                           target_transform=transform_target),
                              batch_size=batch_size)
 
