@@ -91,7 +91,7 @@ class FashionConvTernaryTanh(BaseModel):
         for k, v in param_dict.items():
             self.state_dict()[k][:] = v
 
-    def generate_discrete_networks(self, method: str) -> MnistReal:
+    def generate_discrete_networks(self, method: str) -> FashionConvReal:
         """
 
         :param method: sample or argmax
