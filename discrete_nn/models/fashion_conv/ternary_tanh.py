@@ -173,7 +173,7 @@ def train_model(real_model_folder):
     print('Using device:', device)
 
     real_model_param_path = os.path.join(model_path, real_model_folder,
-                                         "FashionReal.param.pickle")
+                                         "FashionConvReal.param.pickle")
     with open(real_model_param_path, "rb") as f:
         real_param = pickle.load(f)
         logit_net = FashionConvTernaryTanh(real_param)
