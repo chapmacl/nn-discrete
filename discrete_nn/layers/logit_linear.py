@@ -46,15 +46,15 @@ class LogitLinear(nn.Module):
         :returs: tuple (sampled_w, sampled_b) where sampled_w and sampled_b are tensors of the shapes
         (output_features x input_features) and (output_features x 1)
         """
-        probabilities_w = self.generate_weight_probabilities(self.W_logits)
-        probabilities_b = self.generate_weight_probabilities(self.b_logits)
+        probabilities_w = self.generate_weight_probabilities(self.W_logits).cpu()
+        probabilities_b = self.generate_weight_probabilities(self.b_logits).cpu()
         assert(probabilities_b.shape != probabilities_w.shape)
         # logit probabilities must be in inner dimension for torch.distribution.Multinomial
         probabilities_w = probabilities_w.transpose(0, 1).transpose(1, 2)
         # stepped transpose bc we need to keep the order of the other dimensions
         probabilities_b = probabilities_b.transpose(0, 1).transpose(1, 2)
-        discrete_values_tensor = torch.tensor(self.discrete_values).to(self.device).double()
-        discrete_values_tensor.to(self.device)
+        discrete_values_tensor = torch.tensor(self.discrete_values).double()
+
         if method == "sample":
             m_w = Multinomial(probs=probabilities_w)
             m_b = Multinomial(probs=probabilities_b)
@@ -176,8 +176,7 @@ class TernaryLinear(LogitLinear):
     def __init__(self, input_features: int, input_feature_type: ValueTypes, output_features: int, real_init_weights,
                  real_init_bias, normalize_activations: bool = False):
         """
-        Discretizes the weights from a matr    if device == "cuda:0":
-        torch.set_default_tensor_type(torch.cuda.FloatTensor)ix with real weights based on the "probabilistic" method proposed in
+        Discretizes the weights from a matrix with real weights based on the "probabilistic" method proposed in
         the paper (pg. 9, last paragraph)
         :param input_features: the number of inputs
         :param input_feature_type: the type of the input (e.g. real, gaussian distribution)
