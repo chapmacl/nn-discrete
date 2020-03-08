@@ -19,8 +19,8 @@ def evaluate_discretized_from_logit_models(model: LogitModel, discretization_met
     :param result_save_path: the path to save results to
     :return:
     """
-    # gets device being used for dataset
-    device = dataset.dataset[0].device
+    # gets device being used for dataset by looking into dataset used by dataloader
+    device = dataset.dataset[0][0].device
 
     results = []
     for i in range(num_trials):
