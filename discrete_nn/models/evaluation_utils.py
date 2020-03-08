@@ -19,12 +19,14 @@ def evaluate_discretized_from_logit_models(model: LogitModel, discretization_met
     :param result_save_path: the path to save results to
     :return:
     """
+    # gets device being used for dataset
+    device = dataset.dataset[0].device
 
     results = []
     for i in range(num_trials):
         # discretizes
         disc_model = model.generate_discrete_networks(discretization_method)
-        disc_model = disc_model.cpu()
+        disc_model = disc_model.to(device)
         stats = disc_model.evaluate_model(dataset)
         results.append(stats)
     mean_loss = sum([result["loss"][0] for result in results]) / num_trials
