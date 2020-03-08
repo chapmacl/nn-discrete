@@ -83,7 +83,6 @@ class BaseModel(torch.nn.Module):
         # training part of epoch
         for batch_inx, (X, Y) in enumerate(dataset_generator):
             gc.collect()
-            Y = Y.to(device)
             self.optimizer.zero_grad()  # reset gradients from previous iteration
             # do forward pass
             net_output = self(X)
