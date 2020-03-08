@@ -128,6 +128,7 @@ class LogitLinear(nn.Module):
 
         weight_var = weight_probabilities * torch.pow(discrete_val_tensor - weight_mean, 2)
         weight_var = weight_var.sum(dim=0)
+        print(f"w_mean device:{weight_mean.device} - w_var device:{weight_var.device}")
         return weight_mean, weight_var
 
     def forward(self, x: torch.Tensor):
