@@ -5,7 +5,6 @@ from discrete_nn.layers.type_defs import ValueTypes
 from discrete_nn.layers.weight_utils import discretize_weights_probabilistic
 
 from torch import nn
-from torch import Tensor
 from torch.distributions import Multinomial
 import torch
 
@@ -38,9 +37,6 @@ class LogitLinear(nn.Module):
                                            requires_grad=True)
         self.b_logits = torch.nn.Parameter(discretize_weights_probabilistic(initialization_bias, self.discrete_values),
                                            requires_grad=True)
-        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-        if self.device == "cuda:0":
-            torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
     def generate_discrete_network(self, method: str = "sample"):
         """ generates discrete weights from the weights of the layer based on the weight distributions
@@ -180,7 +176,8 @@ class TernaryLinear(LogitLinear):
     def __init__(self, input_features: int, input_feature_type: ValueTypes, output_features: int, real_init_weights,
                  real_init_bias, normalize_activations: bool = False):
         """
-        Discretizes the weights from a matrix with real weights based on the "probabilistic" method proposed in
+        Discretizes the weights from a matr    if device == "cuda:0":
+        torch.set_default_tensor_type(torch.cuda.FloatTensor)ix with real weights based on the "probabilistic" method proposed in
         the paper (pg. 9, last paragraph)
         :param input_features: the number of inputs
         :param input_feature_type: the type of the input (e.g. real, gaussian distribution)

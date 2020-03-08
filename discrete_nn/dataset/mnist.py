@@ -10,6 +10,25 @@ import gzip
 import struct
 import numpy as np
 from torch.utils.data import DataLoader, Dataset
+import torch
+
+
+class DatasetMNIST(Dataset):
+    """
+    Dataset for pytorch's DataLoader
+    """
+
+    def __init__(self, x, y, device):
+        self.x = torch.from_numpy(x) * 2 - 1
+        self.y = torch.from_numpy(y).long()
+        self.x = self.x.to(device)
+        self.y = self.y.to(device)
+
+    def __len__(self):
+        return self.x.shape[0]
+
+    def __getitem__(self, item_inx):
+        return self.x[item_inx], self.y[item_inx]
 
 
 class MNIST:
@@ -57,7 +76,7 @@ class MNIST:
 
             return np.fromfile(f, dtype=np.uint8).reshape(n_images_read, n_rows * n_cols).astype(np.float32) / 255.
 
-    def __init__(self, force_download=False):
+    def __init__(self, device, force_download=False):
         dataset_folder = os.path.join(settings.dataset_path, "mnist")
         url_x_train = 'http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz'
         x_train_path = os.path.join(dataset_folder, "mnist_x_train.bin")
@@ -72,14 +91,19 @@ class MNIST:
         y_test_path = os.path.join(dataset_folder, "mnist_y_test.bin")
         self._download_and_uncompress(url_y_test, y_test_path, replace=force_download)
 
-        self.x_train = self._load_input_file(x_train_path, 2051, 60000, 28, 28)
-        self.y_train = self._load_target_file(y_train_path, 2049, 60000)
+        x_train = self._load_input_file(x_train_path, 2051, 60000, 28, 28)
+        y_train = self._load_target_file(y_train_path, 2049, 60000)
 
         # need to split training set into training and validation set
-        self.x_val: np.ndarray = self.x_train[50000:]
-        self.y_val: np.ndarray = self.y_train[50000:]
-        self.x_train: np.ndarray = self.x_train[:50000]
-        self.y_train: np.ndarray = self.y_train[:50000]
+        x_val: np.ndarray = x_train[50000:]
+        y_val: np.ndarray = y_train[50000:]
+        x_train: np.ndarray = x_train[:50000]
+        y_train: np.ndarray = y_train[:50000]
 
-        self.x_test: np.ndarray = self._load_input_file(x_test_path, 2051, 10000, 28, 28)
-        self.y_test: np.ndarray = self._load_target_file(y_test_path, 2049, 10000)
+        self.train = DatasetMNIST(x_train, y_train, device)
+        self.validation = DatasetMNIST(x_val, y_val, device)
+
+        x_test: np.ndarray = self._load_input_file(x_test_path, 2051, 10000, 28, 28)
+        y_test: np.ndarray = self._load_target_file(y_test_path, 2049, 10000)
+        self.test = DatasetMNIST(x_test, y_test, device)
+

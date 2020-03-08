@@ -2,15 +2,10 @@
 This module implements the real valued (non convolutionary) network for the mnist dataset
 """
 import torch
-from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 
 from discrete_nn.dataset.mnist import MNIST
 from discrete_nn.models.base_model import BaseModel
-
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-if device == "cuda:0":
-    torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
 
 class MnistPiReal(BaseModel):
@@ -46,7 +41,7 @@ class MnistPiReal(BaseModel):
 
     def forward(self, x):
         # takes image vector
-        x = x.to(device)
+        x = x
         return self.netlayers(x)
 
     def set_net_parameters(self, param_dict):
@@ -79,44 +74,27 @@ class MnistPiReal(BaseModel):
         return repr_dict
 
 
-class DatasetMNIST(Dataset):
-    """
-    Dataset for pytorch's DataLoader
-    """
-
-    def __init__(self, x, y):
-        self.x = torch.from_numpy(x) * 2 - 1
-        self.y = torch.from_numpy(y).long()
-        self.x = self.x.to(device)
-        self.y = self.y.to(device)
-
-    def __len__(self):
-        return self.x.shape[0]
-
-    def __getitem__(self, item_inx):
-        return self.x[item_inx], self.y[item_inx]
-
-
 def train_model():
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
     # basic dataset holder
-    mnist = MNIST()
+    mnist = MNIST(device)
     # creates the dataloader for pytorch
     batch_size = 100
-    train_loader = DataLoader(dataset=DatasetMNIST(mnist.x_train, mnist.y_train), batch_size=batch_size,
+    train_loader = DataLoader(dataset=mnist.train, batch_size=batch_size,
                               shuffle=True)
-    validation_loader = DataLoader(dataset=DatasetMNIST(mnist.x_val, mnist.y_val), batch_size=batch_size,
+    validation_loader = DataLoader(dataset=mnist.validation, batch_size=batch_size,
                                    shuffle=False)
-    test_loader = DataLoader(dataset=DatasetMNIST(mnist.x_test, mnist.y_test), batch_size=batch_size,
+    test_loader = DataLoader(dataset=mnist.test, batch_size=batch_size,
                              shuffle=False)
 
     net = MnistPiReal()
     net = net.to(device)
 
-    num_epochs = 200
+    num_epochs = 100
     # will save metrics and model to disk
     net.train_model(train_loader, validation_loader, test_loader, num_epochs, model_name="MNIST-pi-real")
 
 
 if __name__ == "__main__":
-    print('Using device:', device)
     train_model()

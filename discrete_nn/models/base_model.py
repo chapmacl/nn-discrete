@@ -4,15 +4,13 @@ import json
 import pickle
 from sklearn.metrics import accuracy_score, classification_report
 from tqdm import tqdm
+from typing import Dict
 import numpy as np
 import torch
+from torch.utils.data import Dataset, DataLoader
 from collections import defaultdict
 from discrete_nn.settings import model_path
 import gc
-
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-if device == "cuda:0":
-    torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
 
 class BaseModel(torch.nn.Module):
@@ -20,7 +18,6 @@ class BaseModel(torch.nn.Module):
         super().__init__()
         self.optimizer = None
         self.loss_funct = None
-        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     def _evaluate(self, dataset_generator):
         """
@@ -37,22 +34,30 @@ class BaseModel(torch.nn.Module):
         with torch.no_grad():
             gc.collect()
             for batch_inx, (X, Y) in enumerate(dataset_generator):
-                X = X.to(device)
                 outputs = self(X)
-                outputs = outputs.to(self.device)
-                Y = Y.to(device)
                 loss = self.loss_funct(outputs, Y)
                 validation_losses.append(float(loss))
                 predictions += torch.nn.functional.softmax(outputs, dim=1).argmax(dim=1).tolist()
                 targets += Y.tolist()
         return self._gen_stats(targets, predictions, validation_losses)
 
-    def evaluate_and_save_to_disk(self, dataset, name):
+    def evaluate_model(self, dataset: DataLoader) -> Dict:
+        """
+        Evaluates the model with dataset
+        :param dataset: the dataset to evaluate with
+        :return:
+        """
         loss, acc, class_report_dict = self._evaluate(dataset)
         stats = defaultdict(list)
         stats["loss"].append(loss)
         stats["acc"].append(acc)
         stats["classification_report"].append(class_report_dict)
+        return stats
+
+    def evaluate_and_save_to_disk(self, dataset, name):
+        """given a dataset extending Pytorch's Dataset class, and a name for the folder where the results will be placed,
+        evaluates the network."""
+        stats = self.evaluate_model(dataset)
         self.save_to_disk(stats, name, False)
 
     @staticmethod
@@ -106,11 +111,14 @@ class BaseModel(torch.nn.Module):
         with open(os.path.join(container_folder, "metrics.json"), "w") as f:
             json.dump(stats, f)
         if save_model:
-            with open(os.path.join(container_folder, f"{self.__class__.__name__}.pickle"), "wb") as f:
-                pickle.dump(self, f)
+            model = self
+            model = model.cpu()
 
-            with open(os.path.join(container_folder, f"{self.__class__.__name__}.param.pickle"), "wb") as f:
-                pickle.dump(self.get_net_parameters(), f)
+            with open(os.path.join(container_folder, f"{model.__class__.__name__}.pickle"), "wb") as f:
+                pickle.dump(model, f)
+
+            with open(os.path.join(container_folder, f"{model.__class__.__name__}.param.pickle"), "wb") as f:
+                pickle.dump(model.get_net_parameters(), f)
         return container_folder
 
     def train_model(self, training_dataset, validation_dataset, test_dataset, epochs, model_name,
@@ -168,6 +176,13 @@ class BaseModel(torch.nn.Module):
         stats["test_classification_report"] = test_class_report
         return self.save_to_disk(stats, f"{model_name}-trained")
 
+
+class LogitModel(BaseModel):
+    def __init__(self):
+        super().__init__()
+
+    def generate_discrete_networks(self, method: str) -> BaseModel:
+        raise NotImplementedError
 
 class AlternateDiscretizationBaseModel(BaseModel):
     """
