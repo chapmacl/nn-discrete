@@ -139,7 +139,7 @@ class BaseModel(torch.nn.Module):
             eval_stats["test_loss"] = test_loss
             eval_stats["test_acc"] = test_acc
             eval_stats["test_classification_report"] = test_class_report
-            self.save_to_disk(eval_stats, f"{model_name}-untrained")
+            self.save_to_disk(eval_stats, f"{model_name}-untrained", save_model=False)
         stats = defaultdict(list)
 
         for epoch_in in tqdm(range(epochs), desc="Training Network. Epoch:"):
