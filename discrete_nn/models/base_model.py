@@ -111,7 +111,6 @@ class BaseModel(torch.nn.Module):
             json.dump(stats, f)
         if save_model:
             model = self
-            model = model.cpu()
 
             with open(os.path.join(container_folder, f"{model.__class__.__name__}.pickle"), "wb") as f:
                 pickle.dump(model, f)
