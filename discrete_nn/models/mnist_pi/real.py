@@ -93,7 +93,7 @@ def train_model():
 
     num_epochs = 100
     # will save metrics and model to disk
-    net.train_model(train_loader, validation_loader, test_loader, num_epochs, model_name="MNIST-pi-real")
+    return net.train_model(train_loader, validation_loader, test_loader, num_epochs, model_name="MNIST-pi-real")
 
 
 if __name__ == "__main__":
