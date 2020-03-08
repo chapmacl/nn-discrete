@@ -118,6 +118,8 @@ class LogitLinear(nn.Module):
         """
         weight_probabilities = self.generate_weight_probabilities(logit_weights)
         discrete_val_tensor = torch.zeros_like(logit_weights)
+        # set the device to match that of logits
+        discrete_val_tensor = discrete_val_tensor.to(logit_weights.device)
         for inx, discrete_weight in enumerate(self.discrete_values):
             discrete_val_tensor[inx, :, :] = discrete_weight
         discrete_val_tensor.requires_grad = True
