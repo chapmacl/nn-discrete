@@ -85,9 +85,10 @@ def train_model():
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     # basic dataset holder
-    mnist = MNIST(device)
+    mnist = MNIST(device, "2d")
     # creates the dataloader for pytorch
     batch_size = 100
+
     train_loader = DataLoader(dataset=mnist.train, batch_size=batch_size,
                               shuffle=True)
     validation_loader = DataLoader(dataset=mnist.validation, batch_size=batch_size,

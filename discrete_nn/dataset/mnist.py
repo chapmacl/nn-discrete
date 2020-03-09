@@ -9,7 +9,7 @@ from urllib import request
 import gzip
 import struct
 import numpy as np
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import Dataset
 import torch
 
 
@@ -18,9 +18,24 @@ class DatasetMNIST(Dataset):
     Dataset for pytorch's DataLoader
     """
 
-    def __init__(self, x, y, device):
+    def __init__(self, x, y, device, feature_shape):
+        """
+        Container for a mnist dataset
+        :param x: the features
+        :param y: the labels
+        :param device: the device to store the tensors in
+        :param feature_shape: the shape that data should be returned in:
+            * flat: each data instance is a row vector
+            * 2d: shape used for networks with 2d input. Each minibatch is of the shape ((batch_size, 1, 28, 28))
+
+        """
         self.x = torch.from_numpy(x) * 2 - 1
         self.y = torch.from_numpy(y).long()
+        if feature_shape == "2d":
+            self.x = self.x.reshape((self.x.shape[0], 1, 28, 28))
+        elif feature_shape != "flat":
+            # invalid feature_shape
+            raise ValueError(f"invalid feature_shape {feature_shape}")
         self.x = self.x.to(device)
         self.y = self.y.to(device)
 
@@ -76,7 +91,15 @@ class MNIST:
 
             return np.fromfile(f, dtype=np.uint8).reshape(n_images_read, n_rows * n_cols).astype(np.float32) / 255.
 
-    def __init__(self, device, force_download=False):
+    def __init__(self, device, feature_shape, force_download=False):
+        """
+        Initializes a MNIST dataset holder
+        :param device: the device to stores the tensors in
+        :param feature_shape:the shape that data should be returned in:
+            * flat: each data instance is a row vector
+            * 2d: shape used for networks with 2d input. Each minibatch is of the shape ((batch_size, 1, 28, 28))
+        :param force_download: if true will replace local cache
+        """
         dataset_folder = os.path.join(settings.dataset_path, "mnist")
         url_x_train = 'http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz'
         x_train_path = os.path.join(dataset_folder, "mnist_x_train.bin")
@@ -100,10 +123,9 @@ class MNIST:
         x_train: np.ndarray = x_train[:50000]
         y_train: np.ndarray = y_train[:50000]
 
-        self.train = DatasetMNIST(x_train, y_train, device)
-        self.validation = DatasetMNIST(x_val, y_val, device)
+        self.train = DatasetMNIST(x_train, y_train, device, feature_shape)
+        self.validation = DatasetMNIST(x_val, y_val, device, feature_shape)
 
         x_test: np.ndarray = self._load_input_file(x_test_path, 2051, 10000, 28, 28)
         y_test: np.ndarray = self._load_target_file(y_test_path, 2049, 10000)
-        self.test = DatasetMNIST(x_test, y_test, device)
-
+        self.test = DatasetMNIST(x_test, y_test, device, feature_shape)

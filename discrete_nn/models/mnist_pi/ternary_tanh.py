@@ -119,7 +119,7 @@ def train_model(real_model_folder):
 
     batch_size = 100
     # basic dataset holder
-    mnist = MNIST(device)
+    mnist = MNIST(device, "flat")
     # creates the dataloader for pytorch
     train_loader = DataLoader(dataset=mnist.train, batch_size=batch_size,
                               shuffle=True)
@@ -134,8 +134,8 @@ def train_model(real_model_folder):
         real_param = pickle.load(f)
         logit_net = MnistPiTernaryTanh(real_param)
     logit_net = logit_net.to(device)
-    # discretizing and evaluating
 
+    # discretizing and evaluating
     evaluate_discretized_from_logit_models(logit_net, "sample", test_loader, 10,
                                            os.path.join(model_path,
                                                         "MNIST-Pi-Ternary_untrained_discrete_sample"))

@@ -120,7 +120,7 @@ def train_model(real_model_folder):
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     batch_size = 100
     # basic dataset holder
-    mnist = MNIST(device)
+    mnist = MNIST(device, "2d")
     # creates the dataloader for pytorch
     train_loader = DataLoader(dataset=mnist.train, batch_size=batch_size,
                               shuffle=True)
