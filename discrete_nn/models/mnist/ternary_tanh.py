@@ -2,13 +2,10 @@
 This module implements the real valued (non convolutionary) network for the mnist dataset
 """
 import torch
-from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
-import numpy as np
-import tqdm
+
 import os
 import pickle
-from sklearn.metrics import accuracy_score
 
 from discrete_nn.dataset.mnist import MNIST
 from discrete_nn.settings import model_path
@@ -16,17 +13,14 @@ from discrete_nn.layers.type_defs import ValueTypes, DiscreteWeights
 from discrete_nn.layers.logit_linear import TernaryLinear
 from discrete_nn.layers.conv import LogitConv
 from discrete_nn.layers.local_reparametrization import LocalReparametrization
-from discrete_nn.models.mnist.real_conv import MnistReal
-from discrete_nn.models.base_model import BaseModel
+from discrete_nn.models.mnist.real import MnistReal
+from discrete_nn.models.base_model import LogitModel
+from discrete_nn.models.evaluation_utils import evaluate_discretized_from_logit_models
 
 from discrete_nn.layers.Flatten import Flatten
 
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-if device == "cuda:0":
-    torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
-
-class MnistTernaryTanh(BaseModel):
+class MnistTernaryTanh(LogitModel):
     """
     Real valued (non convolutionary) network for the mnist dataset
     """
@@ -74,7 +68,7 @@ class MnistTernaryTanh(BaseModel):
         self.state_dict()["netlayers.15.weight"] = real_model_params["L3_BatchNorm_W"]
         self.state_dict()["netlayers.15.bias"] = real_model_params["L3_BatchNorm_b"]
 
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-3, weight_decay=1e-8)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-3, weight_decay=1e-10)
         self.loss_funct = torch.nn.CrossEntropyLoss()
 
     def forward(self, x):
@@ -118,70 +112,47 @@ class MnistTernaryTanh(BaseModel):
             "L4_Linear_b": l4_sampled_b
         }
         real_net = MnistReal()
-        real_net.to(device)
         real_net.set_net_parameters(state_dict)
         return real_net
 
 
-class DatasetMNIST(Dataset):
-    """
-    Dataset for pytorch's DataLoader
-    """
-
-    def __init__(self, x, y):
-        self.x = torch.from_numpy(x) * 2 - 1
-        self.y = torch.from_numpy(y).long()
-        self.x = self.x.reshape((self.x.shape[0], 1, 28, 28))
-        self.x = self.x.to(device)
-        self.y = self.y.to(device)
-
-    def __len__(self):
-        return self.x.shape[0]
-
-    def __getitem__(self, item_inx):
-        return self.x[item_inx], self.y[item_inx]
-
-
 def train_model(real_model_folder):
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     batch_size = 100
     # basic dataset holder
-    mnist = MNIST()
+    mnist = MNIST(device)
     # creates the dataloader for pytorch
-    train_loader = DataLoader(dataset=DatasetMNIST(mnist.x_train, mnist.y_train), batch_size=batch_size,
+    train_loader = DataLoader(dataset=mnist.train, batch_size=batch_size,
                               shuffle=True)
-    validation_loader = DataLoader(dataset=DatasetMNIST(mnist.x_val, mnist.y_val), batch_size=batch_size,
+    validation_loader = DataLoader(dataset=mnist.validation, batch_size=batch_size,
                                    shuffle=False)
-    test_loader = DataLoader(dataset=DatasetMNIST(mnist.x_test, mnist.y_test), batch_size=batch_size,
+    test_loader = DataLoader(dataset=mnist.test, batch_size=batch_size,
                              shuffle=False)
-
-    print('Using device:', device)
-
     real_model_param_path = os.path.join(model_path, real_model_folder,
                                          "MnistReal.param.pickle")
     with open(real_model_param_path, "rb") as f:
         real_param = pickle.load(f)
         logit_net = MnistTernaryTanh(real_param)
     logit_net = logit_net.to(device)
+
     # discretizing and evaluating
-    # todo should probably generate several sampled ones?
-    discrete_net = logit_net.generate_discrete_networks("sample")
-    discrete_net = discrete_net.to(device)
-    discrete_net.evaluate_and_save_to_disk(test_loader, "MNIST-ex3.1_untrained_discretized_ternary_sample")
-    discrete_net = logit_net.generate_discrete_networks("argmax")
-    discrete_net = discrete_net.to(device)
-    discrete_net.evaluate_and_save_to_disk(test_loader, "MNIST-ex3.1_untrained_discretized_ternary_argmax")
-    del discrete_net
+    evaluate_discretized_from_logit_models(logit_net, "sample", test_loader, 10,
+                                           os.path.join(model_path,
+                                                        "MNIST-Conv-Ternary_untrained_discrete_sample"))
+    evaluate_discretized_from_logit_models(logit_net, "argmax", test_loader, 1,
+                                           os.path.join(model_path,
+                                                        "MNIST-Conv-Ternary_untrained_discrete_argmax"))
+
     # evaluate first logit model before training, train and evaluate again
 
-    logit_net.train_model(train_loader, validation_loader, test_loader, 100, "MNIST-Ternary-conv", True)
+    logit_net.train_model(train_loader, validation_loader, test_loader, 100, "MNIST-Conv-Ternary", True)
 
-    # discretizing trained logits net and evaluating
-    discrete_net = logit_net.generate_discrete_networks("sample")
-    discrete_net = discrete_net.to(device)
-    discrete_net.evaluate_and_save_to_disk(test_loader, "MNIST-ex4.1_trained_discretized_ternary_sample-conv")
-    discrete_net = logit_net.generate_discrete_networks("argmax")
-    discrete_net = discrete_net.to(device)
-    discrete_net.evaluate_and_save_to_disk(test_loader, "MNIST-ex4.1_trained_discretized_ternary_argmax-conv")
+    evaluate_discretized_from_logit_models(logit_net, "sample", test_loader, 10,
+                                           os.path.join(model_path,
+                                                        "MNIST-Conv-Ternary_trained_discrete_sample"))
+    evaluate_discretized_from_logit_models(logit_net, "argmax", test_loader, 1,
+                                           os.path.join(model_path,
+                                                        "MNIST-Conv-Ternary_trained_discrete_argmax"))
 
 
 if __name__ == "__main__":

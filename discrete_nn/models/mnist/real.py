@@ -2,22 +2,12 @@
 This module implements the real valued (non convolutionary) network for the mnist dataset
 """
 import torch
-from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
-import numpy as np
-import tqdm
-import os
-import pickle
-from sklearn.metrics import accuracy_score
+
 
 from discrete_nn.models.base_model import BaseModel
 from discrete_nn.dataset.mnist import MNIST
-from discrete_nn.settings import model_path
 from discrete_nn.layers.Flatten import Flatten
-
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-if device == "cuda:0":
-    torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
 
 class MnistReal(BaseModel):
@@ -50,7 +40,7 @@ class MnistReal(BaseModel):
             #
             torch.nn.Linear(512, 10)
         )
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-3, weight_decay=1e-4)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-3, weight_decay=1e-6)
         self.loss_funct = torch.nn.CrossEntropyLoss()
 
     def forward(self, x):
@@ -91,45 +81,27 @@ class MnistReal(BaseModel):
         return repr_dict
 
 
-class DatasetMNIST(Dataset):
-    """
-    Dataset for pytorch's DataLoader
-    """
-
-    def __init__(self, x, y):
-        self.x = torch.from_numpy(x) * 2 - 1
-        self.y = torch.from_numpy(y).long()
-        self.x = self.x.reshape((self.x.shape[0], 1, 28, 28))
-        self.x = self.x.to(device)
-        self.y = self.y.to(device)
-
-    def __len__(self):
-        return self.x.shape[0]
-
-    def __getitem__(self, item_inx):
-        return self.x[item_inx], self.y[item_inx]
-
-
 def train_model():
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
     # basic dataset holder
-    mnist = MNIST()
+    mnist = MNIST(device)
     # creates the dataloader for pytorch
     batch_size = 100
-    train_loader = DataLoader(dataset=DatasetMNIST(mnist.x_train, mnist.y_train), batch_size=batch_size,
+    train_loader = DataLoader(dataset=mnist.train, batch_size=batch_size,
                               shuffle=True)
-    validation_loader = DataLoader(dataset=DatasetMNIST(mnist.x_val, mnist.y_val), batch_size=batch_size,
+    validation_loader = DataLoader(dataset=mnist.validation, batch_size=batch_size,
                                    shuffle=False)
-    test_loader = DataLoader(dataset=DatasetMNIST(mnist.x_test, mnist.y_test), batch_size=batch_size,
+    test_loader = DataLoader(dataset=mnist.test, batch_size=batch_size,
                              shuffle=False)
 
     net = MnistReal()
     net = net.to(device)
 
-    num_epochs = 50
+    num_epochs = 100
     # will save metrics and model to disk. returns the path to metrics and saved model
     return net.train_model(train_loader, validation_loader, test_loader, num_epochs, model_name="MNIST-real-conv")
 
 
 if __name__ == "__main__":
-    print('Using device:', device)
     train_model()
