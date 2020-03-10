@@ -62,7 +62,6 @@ class LogitLinear(nn.Module):
             sampled_w = m_w.sample()
             sampled_b = m_b.sample()
             # need to make sure these tensors are in the cpu
-            
 
             if torch.all(sampled_b.sum(dim=2) != 1):
                 raise ValueError("sampled mask for bias does not sum to 1")
@@ -128,7 +127,6 @@ class LogitLinear(nn.Module):
 
         weight_var = weight_probabilities * torch.pow(discrete_val_tensor - weight_mean, 2)
         weight_var = weight_var.sum(dim=0)
-        print(f"w_mean device:{weight_mean.device} - w_var device:{weight_var.device}")
         return weight_mean, weight_var
 
     def forward(self, x: torch.Tensor):

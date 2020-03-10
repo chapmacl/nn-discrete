@@ -105,10 +105,9 @@ def discretize_weights_probabilistic(real_weights: Tensor, discrete_weight_value
     weight_cdf = torch.zeros_like(real_weights, dtype=torch.float64)
     # normalizing according to paper [w_1 - \delta_w/2, w_D - \delta_w/2]
     weight_cdf[real_weights <= 0] = empirical_cdf(real_weights[real_weights <= 0]) * \
-                                    (-discrete_weight_values[0] + delta_w / 2) - (
-                                            -discrete_weight_values[0] + delta_w / 2)
+        (-discrete_weight_values[0] + delta_w / 2) - (-discrete_weight_values[0] + delta_w / 2)
     weight_cdf[real_weights > 0] = empirical_cdf(real_weights[real_weights > 0]) * \
-                                   (discrete_weight_values[-1] + delta_w / 2)
+        (discrete_weight_values[-1] + delta_w / 2)
     # need to shift back to a matrix
     # weight_cdf = weight_cdf.reshape(real_weights.shape)
 
