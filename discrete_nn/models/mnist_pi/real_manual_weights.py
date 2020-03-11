@@ -116,16 +116,18 @@ class DatasetMNIST(Dataset):
         return self.x[item_inx], self.y[item_inx]
 
 
-def train_model():
+def train_model(real_model_folder):
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
     # basic dataset holder
-    mnist = MNIST()
+    mnist = MNIST(device, "flat")
     # creates the dataloader for pytorch
     batch_size = 100
-    train_loader = DataLoader(dataset=DatasetMNIST(mnist.x_train, mnist.y_train), batch_size=batch_size,
+    train_loader = DataLoader(dataset=mnist.train, batch_size=batch_size,
                               shuffle=True)
-    validation_loader = DataLoader(dataset=DatasetMNIST(mnist.x_val, mnist.y_val), batch_size=batch_size,
+    validation_loader = DataLoader(dataset=mnist.validation, batch_size=batch_size,
                                    shuffle=False)
-    test_loader = DataLoader(dataset=DatasetMNIST(mnist.x_test, mnist.y_test), batch_size=batch_size,
+    test_loader = DataLoader(dataset=mnist.test, batch_size=batch_size,
                              shuffle=False)
 
     net = MnistPiAltDiscrete()
@@ -135,16 +137,16 @@ def train_model():
     net.train_model(train_loader, validation_loader, test_loader, num_epochs, "test alternate disc")
     # todo check regularization
 
-    real_model_param_path = os.path.join(model_path, "MnistPiReal-real-trained-2020-2-29--h11m44",
+    real_model_param_path = os.path.join(model_path, real_model_folder,
                                          "MnistPiReal.param.pickle")
     with open(real_model_param_path, "rb") as f:
         real_param = pickle.load(f)
     net.set_net_parameters(real_param)
 
-    net.evaluate_and_save_to_disk(test_loader, "alternate_discretization")
+    net.evaluate_and_save_to_disk(test_loader, "Mnist-Pi-alternate_discretization")
 
 
 if __name__ == "__main__":
     torch.autograd.set_detect_anomaly(True)
     print('Using device:', device)
-    train_model()
+    train_model("MNIST-pi-real-trained-2020-3-8--h17m34")

@@ -78,29 +78,7 @@ class MnistPiTernarySign(BaseModel):
         :param method: sample or argmax
         :return:
         """
-        # state dicts
-        l1_layer: TernaryLinear = self.netlayers[1]
-        l1_sampled_w, l1_sampled_b = l1_layer.generate_discrete_network(method)
-        l2_layer: TernaryLinear = self.netlayers[6]
-        l2_sampled_w, l2_sampled_b = l2_layer.generate_discrete_network(method)
-        l3_layer: TernaryLinear = self.netlayers[11]
-        l3_sampled_w, l3_sampled_b = l3_layer.generate_discrete_network(method)
-        state_dict = {
-            "L1_Linear_W": l1_sampled_w,
-            "L1_Linear_b": l1_sampled_b,
-            "L1_BatchNorm_W": self.state_dict()['netlayers.3.weight'],
-            "L1_BatchNorm_b": self.state_dict()['netlayers.3.bias'],
-            "L2_Linear_W": l2_sampled_w,
-            "L2_Linear_b": l2_sampled_b,
-            "L2_BatchNorm_W": self.state_dict()['netlayers.8.weight'],
-            "L2_BatchNorm_b": self.state_dict()['netlayers.8.bias'],
-            "L3_Linear_W": l3_sampled_w,
-            "L3_Linear_b": l3_sampled_b
-        }
-
-        real_net = MnistPiReal()
-        real_net.set_net_parameters(state_dict)
-        return real_net
+        raise NotImplementedError
 
 
 def train_model(real_model_folder):
@@ -136,7 +114,7 @@ def train_model(real_model_folder):
     """
     # evaluate first logit model before training, train and evaluate again
 
-    logit_net.train_model(train_loader, validation_loader, test_loader, 100, "MNIST-Pi-Ternary", True)
+    logit_net.train_model(train_loader, validation_loader, test_loader, 100, "MNIST-Pi-Sign-Ternary", True)
     """
     evaluate_discretized_from_logit_models(logit_net, "sample", test_loader, 10,
                                            os.path.join(model_path,
