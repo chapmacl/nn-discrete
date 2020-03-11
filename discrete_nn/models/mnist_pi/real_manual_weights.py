@@ -134,14 +134,14 @@ def train_model(real_model_folder):
     net = net.to(device)
     num_epochs = 100
 
-    net.train_model(train_loader, validation_loader, test_loader, num_epochs, "test alternate disc")
-    # todo check regularization
-
     real_model_param_path = os.path.join(model_path, real_model_folder,
                                          "MnistPiReal.param.pickle")
     with open(real_model_param_path, "rb") as f:
         real_param = pickle.load(f)
     net.set_net_parameters(real_param)
+
+    net.train_model(train_loader, validation_loader, test_loader, num_epochs, "test alternate disc")
+    # todo check regularization
 
     net.evaluate_and_save_to_disk(test_loader, "Mnist-Pi-alternate_discretization")
 
