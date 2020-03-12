@@ -127,17 +127,19 @@ class DatasetMNIST(Dataset):
 
 
 def train_model():
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
     # basic dataset holder
-    mnist = MNIST()
+    mnist = MNIST(device, "2d")
     # creates the dataloader for pytorch
     batch_size = 100
-    train_loader = DataLoader(dataset=DatasetMNIST(mnist.x_train, mnist.y_train), batch_size=batch_size,
-                              shuffle=True)
-    validation_loader = DataLoader(dataset=DatasetMNIST(mnist.x_val, mnist.y_val), batch_size=batch_size,
-                                   shuffle=False)
-    test_loader = DataLoader(dataset=DatasetMNIST(mnist.x_test, mnist.y_test), batch_size=batch_size,
-                             shuffle=False)
 
+    train_loader = DataLoader(dataset=mnist.train, batch_size=batch_size,
+                              shuffle=True)
+    validation_loader = DataLoader(dataset=mnist.validation, batch_size=batch_size,
+                                   shuffle=False)
+    test_loader = DataLoader(dataset=mnist.test, batch_size=batch_size,
+                             shuffle=False)
     net = MnistAlternateDiscreteConv()
     net = net.to(device)
 
