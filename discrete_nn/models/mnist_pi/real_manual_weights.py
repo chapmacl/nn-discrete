@@ -140,10 +140,11 @@ def train_model(real_model_folder):
         real_param = pickle.load(f)
     net.set_net_parameters(real_param)
 
-    net.train_model(train_loader, validation_loader, test_loader, num_epochs, "test alternate disc")
+    net.train_model(train_loader, validation_loader, test_loader, num_epochs, "Mnist-Pi-alternate_discretization")
     # todo check regularization
 
-    net.evaluate_and_save_to_disk(test_loader, "Mnist-Pi-alternate_discretization")
+
+    #net.evaluate_and_save_to_disk(test_loader, "Mnist-Pi-alternate_discretization")
 
 
 if __name__ == "__main__":
