@@ -25,10 +25,6 @@ from discrete_nn.models.base_model import BaseModel
 from discrete_nn.layers.Flatten import Flatten
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-if device == "cuda:0":
-    torch.set_default_tensor_type(torch.cuda.FloatTensor)
-
-
 class FashionConvTernaryTanh(BaseModel):
     """
     Real valued (non convolutionary) network for the mnist dataset
@@ -126,26 +122,8 @@ class FashionConvTernaryTanh(BaseModel):
         return real_net
 
 
-class DatasetMNIST(Dataset):
-    """
-    Dataset for pytorch's DataLoader
-    """
-
-    def __init__(self, x, y):
-        self.x = torch.from_numpy(x) * 2 - 1
-        self.y = torch.from_numpy(y).long()
-        self.x = self.x.reshape((self.x.shape[0], 1, 28, 28))
-        self.x = self.x.to(device)
-        self.y = self.y.to(device)
-
-    def __len__(self):
-        return self.x.shape[0]
-
-    def __getitem__(self, item_inx):
-        return self.x[item_inx], self.y[item_inx]
-
-
 def train_model(real_model_folder):
+
     batch_size = 100
     ToTensorMethod = ToTensor()
 
