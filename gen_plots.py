@@ -59,10 +59,10 @@ def plot_acc(experiment_folder):
         train_loss = metrics["training_acc_post_update"]
         val_loss = metrics["validation_acc"]
 
-    plt.plot(train_loss, 'r', label="train loss")
-    plt.plot(val_loss, 'b', label="val. loss")
+    plt.plot(train_loss, 'r', label="train acc")
+    plt.plot(val_loss, 'b', label="val. acc")
     plt.xlabel('epoch', fontsize=18)
-    plt.ylabel('loss', fontsize=16)
+    plt.ylabel('accuracy', fontsize=16)
     # plt.show()
     plt.legend()
     plt_save_path = os.path.join(experiment_folder, "acc_plot.png")
