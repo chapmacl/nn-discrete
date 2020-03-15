@@ -12,8 +12,8 @@ from discrete_nn.settings import model_path
 from discrete_nn.layers.type_defs import ValueTypes, InputFormat
 from discrete_nn.layers.logit_linear import TernaryLinear
 from discrete_nn.layers.sign import DistributionSign
-from discrete_nn.layers.pool import DistributionMaxPool
 
+from discrete_nn.models.mnist_pi.discrete_sign import MnistPiDiscreteSign
 from discrete_nn.layers.distribution_batchnorm import DistributionBatchnorm
 from discrete_nn.layers.local_reparametrization import LocalReparametrization
 from discrete_nn.models.mnist_pi.real import MnistPiReal
@@ -78,7 +78,29 @@ class MnistPiTernarySign(BaseModel):
         :param method: sample or argmax
         :return:
         """
-        raise NotImplementedError
+        # state dicts
+        l1_layer: TernaryLinear = self.netlayers[1]
+        l1_sampled_w, l1_sampled_b = l1_layer.generate_discrete_network(method)
+        l2_layer: TernaryLinear = self.netlayers[6]
+        l2_sampled_w, l2_sampled_b = l2_layer.generate_discrete_network(method)
+        l3_layer: TernaryLinear = self.netlayers[11]
+        l3_sampled_w, l3_sampled_b = l3_layer.generate_discrete_network(method)
+        state_dict = {
+            "L1_Linear_W": l1_sampled_w,
+            "L1_Linear_b": l1_sampled_b,
+            "L1_BatchNorm_W": self.state_dict()['netlayers.2.gamma'],
+            "L1_BatchNorm_b": self.state_dict()['netlayers.2.beta'],
+            "L2_Linear_W": l2_sampled_w,
+            "L2_Linear_b": l2_sampled_b,
+            "L2_BatchNorm_W": self.state_dict()['netlayers.7.gamma'],
+            "L2_BatchNorm_b": self.state_dict()['netlayers.7.beta'],
+            "L3_Linear_W": l3_sampled_w,
+            "L3_Linear_b": l3_sampled_b
+        }
+
+        real_net = MnistPiDiscreteSign()
+        real_net.set_net_parameters(state_dict)
+        return real_net
 
 
 def train_model(real_model_folder):

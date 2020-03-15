@@ -4,6 +4,14 @@ from torch import nn
 from discrete_nn.layers.type_defs import InputFormat
 
 
+class DiscreteSign(nn.Module):
+    def __init__(self):
+        super().__init__()
+    def forward(self, x):
+        outputs = torch.ones_like(x)
+        outputs[x < 0.0] = -1
+        return x
+
 class DistributionSign(nn.Module):
     def __init__(self, input_format: InputFormat):
         super().__init__()
