@@ -9,5 +9,5 @@ setup(name='discrete_nn',
       description='Discrete neural networks with pytorch',
       author='Clay Chapman and Thiago Bell',
       packages=find_packages(),
-      install_requires=["scikit-learn", "torch", "tqdm", "numpy", "torchvision"])
+      install_requires=["scikit-learn", "torch", "tqdm", "numpy", "torchvision", "matplotlib"])
 

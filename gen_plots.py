@@ -1,7 +1,7 @@
 import json
 import matplotlib.pyplot as plt
-
-
+import os
+"""
 with open('metrics.json') as f:
     d = json.load(f)
 
@@ -41,3 +41,53 @@ for number, numberV in zip(values, values2):
     plt.ylabel('F1', fontsize=16)
     #plt.show()
     plt.savefig(title + '.png')
+
+"""
+
+
+def plot_acc(experiment_folder):
+    # opening metrics file
+    with open(os.path.join(experiment_folder, "metrics.json")) as f:
+        metrics = json.load(f)
+
+    if "training_loss_post_post_discretize" in metrics:
+        # its an alternate discretization experiment
+        train_loss = metrics["training_acc_post_discretize"]
+        val_loss = metrics["validation_acc_post_discretize"]
+    else:
+        # other types of experiment
+        train_loss = metrics["training_acc_post_update"]
+        val_loss = metrics["validation_acc"]
+
+    plt.plot(train_loss, 'r', label="train loss")
+    plt.plot(val_loss, 'b', label="val. loss")
+    plt.xlabel('epoch', fontsize=18)
+    plt.ylabel('loss', fontsize=16)
+    # plt.show()
+    plt.legend()
+    plt_save_path = os.path.join(experiment_folder, "acc_plot.png")
+    plt.savefig(plt_save_path)
+
+
+def plot_loss(experiment_folder):
+    # opening metrics file
+    with open(os.path.join(experiment_folder, "metrics.json")) as f:
+        metrics = json.load(f)
+
+    if "training_loss_post_post_discretize" in metrics:
+        # its an alternate discretization experiment
+        train_loss = metrics["training_loss_post_discretize"]
+        val_loss = metrics["validation_loss_post_discretize"]
+    else:
+        # other types of experiment
+        train_loss = metrics["training_loss_post_update"]
+        val_loss = metrics["validation_loss"]
+
+    plt.plot(train_loss, 'r', label="train loss")
+    plt.plot(val_loss, 'b', label="val. loss")
+    plt.xlabel('epoch', fontsize=18)
+    plt.ylabel('loss', fontsize=16)
+    # plt.show()
+    plt.legend()
+    plt_save_path = os.path.join(experiment_folder, "loss_plot.png")
+    plt.savefig(plt_save_path)
