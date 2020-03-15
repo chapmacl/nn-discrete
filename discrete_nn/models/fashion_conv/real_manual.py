@@ -4,22 +4,20 @@ This module implements the real valued (non convolutionary) network for the mnis
 import torch
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
-from torchvision.datasets import FashionMNIST
 from torchvision.transforms import ToTensor
-import torch
+from torchvision.datasets import FashionMNIST
 
-from discrete_nn.models.base_model import BaseModel
+from discrete_nn.models.base_model import AlternateDiscretizationBaseModel
 from discrete_nn.layers.Flatten import Flatten
-
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 if device == "cuda:0":
     torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
 
-class FashionConvReal(BaseModel):
+class FashionMnistAlternateDiscreteConv(AlternateDiscretizationBaseModel):
     """
-    Real valued (non convolutionary) network for the fashion mnist dataset
+    Real valued (non convolutionary) network for the mnist dataset
     """
 
     def __init__(self):
@@ -87,29 +85,26 @@ class FashionConvReal(BaseModel):
         repr_dict["L4_Linear_b"] = internal_dict["netlayers.14.bias"].reshape(-1, 1)
         return repr_dict
 
-
-class DatasetMNIST(Dataset):
-    """
-    Dataset for pytorch's DataLoader
-    """
-
-    def __init__(self, x, y):
-        self.x = torch.from_numpy(x) * 2 - 1
-        self.y = torch.from_numpy(y).long()
-        self.x = self.x.reshape((self.x.shape[0], 1, 28, 28))
-        self.x = self.x.to(device)
-        self.y = self.y.to(device)
-
-    def __len__(self):
-        return self.x.shape[0]
-
-    def __getitem__(self, item_inx):
-        return self.x[item_inx], self.y[item_inx]
+    def discretize(self):
+        # Manually adjust the weights
+        modules = self._modules["netlayers"]._modules
+        layerIndices = ["0", "5", "11", "14"]
+        for mod in layerIndices:
+            layer = modules[str(mod)]
+            if hasattr(layer, "weight"):
+                data = layer.weight
+                for x in range(0, len(data)):
+                    min = torch.min(data[x])
+                    max = torch.max(data[x])
+                    data[x] = 2 * ((data[x] - min) / (max - min)) - 1
+                    data[x] = torch.round(data[x])     #Use this for Ternary
+                    #data[x] = torch.round(data[x] / 0.5) * 0.5  # Use this for Quinary
+        return
 
 
 
 def train_model():
-    # creates the dataloader for pytorch
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     batch_size = 100
     ToTensorMethod = ToTensor()
 
@@ -136,12 +131,13 @@ def train_model():
                                           target_transform=transform_target),
                              batch_size=batch_size)
 
-    net = FashionConvReal()
+    net = FashionMnistAlternateDiscreteConv()
     net = net.to(device)
 
     num_epochs = 100
-    # will save metrics and model to disk
-    return net.train_model(train_loader, validation_loader, test_loader, num_epochs, "FashionMnistConv")
+    # will save metrics and model to disk. returns the path to metrics and saved model
+    return net.train_model(train_loader, validation_loader, test_loader, num_epochs,
+                           model_name="FashionMNIST-conv-alt-conv")
 
 
 if __name__ == "__main__":
