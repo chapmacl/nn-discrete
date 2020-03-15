@@ -58,15 +58,15 @@ def plot_acc(experiment_folder):
         # other types of experiment
         train_loss = metrics["training_acc_post_update"]
         val_loss = metrics["validation_acc"]
+    fig, ax = plt.subplots()
+    ax.plot(train_loss, 'r', label="train acc")
+    ax.plot(val_loss, 'b', label="val. acc")
+    ax.xlabel('epoch', fontsize=18)
+    ax.ylabel('accuracy', fontsize=16)
 
-    plt.plot(train_loss, 'r', label="train acc")
-    plt.plot(val_loss, 'b', label="val. acc")
-    plt.xlabel('epoch', fontsize=18)
-    plt.ylabel('accuracy', fontsize=16)
-    # plt.show()
-    plt.legend()
+    ax.legend()
     plt_save_path = os.path.join(experiment_folder, "acc_plot.png")
-    plt.savefig(plt_save_path)
+    fig.savefig(plt_save_path)
 
 
 def plot_loss(experiment_folder):
@@ -82,12 +82,12 @@ def plot_loss(experiment_folder):
         # other types of experiment
         train_loss = metrics["training_loss_post_update"]
         val_loss = metrics["validation_loss"]
-
-    plt.plot(train_loss, 'r', label="train loss")
-    plt.plot(val_loss, 'b', label="val. loss")
-    plt.xlabel('epoch', fontsize=18)
-    plt.ylabel('loss', fontsize=16)
+    fig, ax = plt.subplots()
+    ax.plot(train_loss, 'r', label="train loss")
+    ax.plot(val_loss, 'b', label="val. loss")
+    ax.xlabel('epoch', fontsize=18)
+    ax.ylabel('loss', fontsize=16)
     # plt.show()
-    plt.legend()
+    ax.legend()
     plt_save_path = os.path.join(experiment_folder, "loss_plot.png")
-    plt.savefig(plt_save_path)
+    fig.savefig(plt_save_path)
