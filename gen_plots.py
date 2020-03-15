@@ -50,7 +50,7 @@ def plot_acc(experiment_folder):
     with open(os.path.join(experiment_folder, "metrics.json")) as f:
         metrics = json.load(f)
 
-    if "training_loss_post_post_discretize" in metrics:
+    if "training_loss_post_discretize" in metrics:
         # its an alternate discretization experiment
         train_loss = metrics["training_acc_post_discretize"]
         val_loss = metrics["validation_acc_post_discretize"]
@@ -74,7 +74,7 @@ def plot_loss(experiment_folder):
     with open(os.path.join(experiment_folder, "metrics.json")) as f:
         metrics = json.load(f)
 
-    if "training_loss_post_post_discretize" in metrics:
+    if "training_loss_post_discretize" in metrics:
         # its an alternate discretization experiment
         train_loss = metrics["training_loss_post_discretize"]
         val_loss = metrics["validation_loss_post_discretize"]
