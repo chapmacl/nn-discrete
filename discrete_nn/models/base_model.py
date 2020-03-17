@@ -113,10 +113,11 @@ class BaseModel(torch.nn.Module):
             model = self
 
             with open(os.path.join(container_folder, f"{model.__class__.__name__}.pickle"), "wb") as f:
-                pickle.dump(model, f)
+                torch.save(model, f)
 
             with open(os.path.join(container_folder, f"{model.__class__.__name__}.param.pickle"), "wb") as f:
-                pickle.dump(model.get_net_parameters(), f)
+                torch.save(model.get_net_parameters(), f)
+
         return container_folder
 
     def train_model(self, training_dataset, validation_dataset, test_dataset, epochs, model_name,
