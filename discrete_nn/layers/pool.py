@@ -71,6 +71,8 @@ class DistributionMaxPool(nn.Module):
 
             means = input_tensor[:, 0, :, :, :]
             vars = input_tensor[:, 1, :, :, :]
+            # send filter_mat to the same device as the means
+            filter_mat = filter_mat.to(means.device).double()
             # no padding like in reference implementation
             neigh_means = nn.functional.conv2d(means, filter_mat, stride=self.stride)
             neigh_vars = nn.functional.conv2d(vars, filter_mat, stride=self.stride)
