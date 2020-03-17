@@ -124,7 +124,8 @@ def train_model(real_model_folder):
     real_model_param_path = os.path.join(model_path, real_model_folder,
                                          "FashionConvReal.param.pickle")
     with open(real_model_param_path, "rb") as f:
-        real_param = pickle.load(f)
+        #real_param = pickle.load(f)
+        real_param = torch.load(f, map_location=device)
         logit_net = FashionConvTernarySign(real_param)
 
     # evaluate first logit model before training, train and evaluate again
@@ -134,3 +135,4 @@ def train_model(real_model_folder):
 
 if __name__ == "__main__":
     train_model("FashionMnistConv-trained-2020-3-7--h23m1")
+
