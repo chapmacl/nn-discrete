@@ -1,16 +1,11 @@
 """
-implements a discrete model for the sign activated architecture
-""""""
-This module implements the real valued (non convolutionary) network for the mnist dataset
+implements a discrete model sign activated architecture for mnist pi
 """
 import torch
-from torch.utils.data import DataLoader
 
-from discrete_nn.dataset.mnist import MNIST
 from discrete_nn.models.base_model import BaseModel
 from discrete_nn.layers.sign import DiscreteSign
 from discrete_nn.layers.linear import Linear
-
 
 
 class MnistPiDiscreteSign(BaseModel):
@@ -18,7 +13,7 @@ class MnistPiDiscreteSign(BaseModel):
     Real valued (non convolutionary) network for the mnist dataset
     """
 
-    def __init__(self, weights=None):
+    def __init__(self):
         """
 
         :param weights: if not none contains the weighs for the networks layers
@@ -40,7 +35,7 @@ class MnistPiDiscreteSign(BaseModel):
             DiscreteSign(),
             #
             torch.nn.Dropout(p=0.4),
-            Linear(1200, 10, normalize_activations=True))  # last layer outputs the unnormalized loglikelihood used by the softmax later
+            Linear(1200, 10, normalize_activations=True))
         self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-3, weight_decay=1e-4)
         self.loss_funct = torch.nn.CrossEntropyLoss()
 
