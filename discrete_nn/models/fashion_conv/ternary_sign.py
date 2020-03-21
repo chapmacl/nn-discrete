@@ -135,4 +135,4 @@ def train_model(real_model_folder):
 
 if __name__ == "__main__":
     train_model("FashionMnistConv-trained-2020-3-7--h23m1")
-
+    # train_model("FashionMnistConv")

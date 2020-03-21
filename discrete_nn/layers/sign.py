@@ -32,13 +32,17 @@ class DistributionSign(nn.Module):
         mean_out, var_out = self._sign(means, vars)
         return torch.stack([mean_out, var_out], dim=1)
 
-    def _sign(self, mean: torch.Tensor, variance: torch.Tensor, eps=1e-2):
+    def _sign(self, mean: torch.Tensor, variance: torch.Tensor, eps=1e-8):
         if math.isnan(mean.mean()) or math.isnan(variance.mean()):
             print("input has nan")
         mean_out: torch.Tensor = torch.erf(mean / torch.sqrt(2. * variance + eps))
         var_out = 1. - torch.pow(mean_out, 2) + max(1e-6, eps)
         if math.isnan(mean_out.mean()) or math.isnan(var_out.mean()):
-            raise ValueError("sign operation resulted in a NaN. increase epsilon at the DistributionSing layer")
+            #raise ValueError("sign operation resulted in a NaN. increase epsilon at the DistributionSing layer")
+            print("sign operation resulted in a NaN. increase epsilon at the DistributionSing layer")
+
+        if torch.any(var_out < 0):
+            raise ValueError("Sign layer: variance is negative. Epsilon should be increased")
 
         return mean_out, var_out
 
