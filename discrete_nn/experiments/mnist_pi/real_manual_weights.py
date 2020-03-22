@@ -51,19 +51,6 @@ class MnistPiAltDiscrete(AlternateDiscretizationBaseModel):
         # takes image vector
         return self.netlayers(x)
 
-    def set_net_parameters(self, param_dict):
-        self.state_dict()["netlayers.1.weight"][:] = param_dict["L1_Linear_W"]
-        self.state_dict()["netlayers.1.bias"][:] = param_dict["L1_Linear_b"].reshape(-1)
-        self.state_dict()['netlayers.2.weight'][:] = param_dict["L1_BatchNorm_W"]
-        self.state_dict()['netlayers.2.bias'][:] = param_dict["L1_BatchNorm_b"]
-        self.state_dict()["netlayers.5.weight"][:] = param_dict["L2_Linear_W"]
-        self.state_dict()["netlayers.5.bias"][:] = param_dict["L2_Linear_b"].reshape(-1)
-        self.state_dict()['netlayers.6.weight'][:] = param_dict["L2_BatchNorm_W"]
-        self.state_dict()['netlayers.6.bias'][:] = param_dict["L2_BatchNorm_b"]
-        self.state_dict()["netlayers.9.weight"][:] = param_dict["L3_Linear_W"]
-        self.state_dict()["netlayers.9.bias"][:] = param_dict["L3_Linear_b"].reshape(-1)
-        return
-
     def get_net_parameters(self):
         """:returns a dictionary with the trainable parameters"""
         internal_dict = {name: value for name, value in self.named_parameters()}

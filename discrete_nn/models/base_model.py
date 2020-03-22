@@ -1,3 +1,7 @@
+"""
+
+"""
+import logging
 import datetime
 import os
 import json
@@ -9,10 +13,14 @@ from typing import Dict
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
-from collections import defaultdict
-from discrete_nn.settings import model_path
+from collections import defaultdict, namedtuple
+from discrete_nn.settings import model_path, checkpoint_path
 import gc
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+Checkpoint = namedtuple("Checkpoint", ["parameters", "epoch", "date"])
 
 class BaseModel(torch.nn.Module):
     def __init__(self):
@@ -82,7 +90,7 @@ class BaseModel(torch.nn.Module):
     @staticmethod
     def _gen_stats(targets, predictions, losses):
         """ generates basic training/evaluation information"""
-        eval_loss = np.mean(losses)
+        eval_loss = float(np.mean(losses))
         eval_acc = accuracy_score(targets, predictions)
         class_report_dict = classification_report(targets, predictions, output_dict=True)
         return eval_loss, eval_acc, class_report_dict
@@ -139,8 +147,13 @@ class BaseModel(torch.nn.Module):
 
         return container_folder
 
-    def train_model(self, training_dataset, validation_dataset, test_dataset, epochs, model_name,
-                    evaluate_before_train: bool = False):
+    def save_checkpoint(self, epoch_number, checkpoint_file_path):
+        ckp = Checkpoint(epoch=epoch_number, parameters=self.get_net_parameters(), date=datetime.datetime.now().isoformat())
+        torch.save(ckp, checkpoint_file_path)
+
+    def train_model(self, training_dataset, validation_dataset, test_dataset: DataLoader, epochs, model_name,
+                    evaluate_before_train: bool = False, continue_from_checkpoint: bool = True,
+                    checkpoint_frequency: int = 3):
         """
         Trains the model with a training dataset and uses the validation_dataset to _evaluate it at every epoch
         :param training_dataset: generator for training data
@@ -150,6 +163,8 @@ class BaseModel(torch.nn.Module):
         :param model_name: a name for the model (important for saving to disk)
         :param evaluate_before_train: if set, model will be evaluate before training (useful in the case of a logit
         model initialized with real weights). The untrained model will be saved to disk
+        :param continue_from_checkpoint: if set will continue from checkpoint if it is found on disk
+        :param checkpoint_frequency: the frequency at which checkpoints are saved (in epochs)
         :return: the path to the folder where metrics were saved
         """
 
@@ -164,8 +179,25 @@ class BaseModel(torch.nn.Module):
                 eval_stats.update(test_callback)
             self.save_to_disk(eval_stats, f"{model_name}-untrained", save_model=False)
         stats = defaultdict(list)
+        start_epoch_inx = 0
+        # check if there is a checkpoint
+        model_save_folder = f"{model_name}-trained"
+        checkpoint_full_path = os.path.join(checkpoint_path, f"ckp_{model_name}.pickle")
+        if os.path.exists(checkpoint_full_path):
+            ckp: Checkpoint = torch.load(checkpoint_full_path, map_location="cpu")
+            if continue_from_checkpoint:
+                logger.info(f"Found checkpoint for {model_name} dated {ckp.date} at epoch {ckp.epoch}."
+                            f" Continuing from checkpoint")
+                self.set_net_parameters(ckp.parameters)
+                start_epoch_inx = ckp.epoch
+            else:
+                logger.info(f"Found checkpoint for {model_name} dated {ckp.date} at epoch {ckp.epoch}."
+                             f" but cannot continue from checkpoint because continue_from_checkpoint is False")
+        else:
+            logger.info(f"Could not find checkpouin for{model_name}")
 
-        for epoch_in in tqdm(range(epochs), desc="Training Network. Epoch:"):
+        for epoch_in in tqdm(range(start_epoch_inx, epochs), initial=start_epoch_inx, total=epochs,
+                             desc="Training Network. Epoch:"):
             training_loss, training_acc, training_class_report = self._train_epoch(training_dataset)
             training_loss_post_update, training_acc_post_update, training_class_report_post_update = self._evaluate(
                 training_dataset)
@@ -190,7 +222,12 @@ class BaseModel(torch.nn.Module):
                 for metric_name, metric_value in val_callback.items():
                     stats[metric_name].append(metric_value)
 
-            print(f"epoch {epoch_in + 1}/{epochs}: "
+            # saves checkpoint if needed
+            if epoch_in+1 % 3 == 0:
+                # saves checkpoint
+                self.save_checkpoint(epoch_in+1, checkpoint_full_path)
+
+            tqdm.write(f"epoch {epoch_in + 1}/{epochs}: "
                   f"train loss: {training_loss:.4f} / "
                   f"validation loss: {validation_loss:.4f} /"
                   f"validation acc: {validation_acc} /"
@@ -205,7 +242,10 @@ class BaseModel(torch.nn.Module):
         if test_callback is not None:
             stats.update(test_callback)
 
-        return self.save_to_disk(stats, f"{model_name}-trained")
+        # removing checkpoint if any
+        if os.path.exists(checkpoint_full_path):
+            os.remove(checkpoint_full_path)
+        return self.save_to_disk(stats, model_save_folder)
 
 
 class LogitModel(BaseModel):
