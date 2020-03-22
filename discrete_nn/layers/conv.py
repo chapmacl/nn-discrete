@@ -151,7 +151,7 @@ class LogitConv(nn.Module):
             # need to generate the discrete weights from the masks
             sampled_w = torch.matmul(sampled_w, discrete_values_tensor)
 
-            if probabilities_b:
+            if probabilities_b is not None:
                 # this is a output channels x 1 x discretization levels mask
                 m_b = Multinomial(probs=probabilities_b)
                 sampled_b = m_b.sample()
@@ -170,7 +170,7 @@ class LogitConv(nn.Module):
             sampled_w = torch.zeros_like(argmax_w).to("cpu")
             sampled_w[:] = discrete_values_tensor[argmax_w[:]]
 
-            if probabilities_b:
+            if probabilities_b is not None:
                 argmax_b = torch.argmax(probabilities_b, dim=2)
                 sampled_b = torch.zeros_like(argmax_b).to("cpu")
                 sampled_b[:] = discrete_values_tensor[argmax_b[:]]
@@ -183,7 +183,7 @@ class LogitConv(nn.Module):
         if sampled_w.shape != probabilities_w.shape[:-1]:
             raise ValueError("sampled probability mask for weights does not match expected shape")
         if sampled_b:
-            if sampled_b.shape != probabilities_b.shape[-1]:
+            if sampled_b.shape != probabilities_b.shape[:-1]:
                 raise ValueError("sampled probability mask for bias does not match expected shape")
 
         return sampled_w, sampled_b
@@ -242,7 +242,9 @@ if __name__ == "__main__":
     test_weight_matrix = torch.rand((1, 1, 3, 3))*2 - 1
     test_bias_matrix = torch.tensor([2.2])
     test_samples = torch.rand(10, 1, 20, 20).double()  # 10 samples, 4 in dimensions
-    layer = LogitConv(1, ValueTypes.REAL, 1, (3, 3), 1,  test_weight_matrix, test_bias_matrix, [-2, -1, 0, 1, 2])
+    layer = LogitConv(1, ValueTypes.REAL, 1, (3, 3), 1,  test_weight_matrix, test_bias_matrix, DiscreteWeights.TERNARY)
     x = layer.forward(test_samples)
+    discrete_param = layer.generate_discrete_network("sample")
+    discrete_param = layer.generate_discrete_network("argmax")
     print(x.shape)
 
