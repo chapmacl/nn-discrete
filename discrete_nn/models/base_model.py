@@ -20,7 +20,7 @@ class BaseModel(torch.nn.Module):
         self.optimizer = None
         self.loss_funct = None
 
-    def _epoch_eval_callback(self, validation_dataset: DataLoader) -> Optional[dict]:
+    def _epoch_eval_callback(self, validation_dataset: DataLoader) -> Optional[Dict]:
         """
         method called by the train model method after the training step in each epoch. Allows custom subclasses
         to do additional evaluations and returns additional epoch stats. Used for logit models to include discretized
@@ -29,7 +29,7 @@ class BaseModel(torch.nn.Module):
         """
         return None
 
-    def _model_testing_callback(self, testing_dataset: DataLoader):
+    def _model_testing_callback(self, testing_dataset: DataLoader) -> Optional[Dict]:
         """
         method called by the train model method when training is done and testing the model with the test dataset.
         Allows custom subclasses to do additional evaluations and returns additional epoch stats.
@@ -159,7 +159,9 @@ class BaseModel(torch.nn.Module):
             eval_stats["test_loss"] = test_loss
             eval_stats["test_acc"] = test_acc
             eval_stats["test_classification_report"] = test_class_report
-            eval_stats.update(self._model_testing_callback(test_dataset))
+            test_callback = self._model_testing_callback(test_dataset)
+            if test_callback is not None:
+                eval_stats.update(test_callback)
             self.save_to_disk(eval_stats, f"{model_name}-untrained", save_model=False)
         stats = defaultdict(list)
 
@@ -183,8 +185,10 @@ class BaseModel(torch.nn.Module):
             stats["validation_classification_report"].append(validation_class_report)
 
             # calls subclasses callback so they can add any metric the wish
-            for metric_name, metric_value in self._epoch_eval_callback(validation_dataset).items():
-                stats[metric_name].append(metric_value)
+            val_callback = self._epoch_eval_callback(validation_dataset)
+            if val_callback is not None:
+                for metric_name, metric_value in val_callback.items():
+                    stats[metric_name].append(metric_value)
 
             print(f"epoch {epoch_in + 1}/{epochs}: "
                   f"train loss: {training_loss:.4f} / "
@@ -197,7 +201,9 @@ class BaseModel(torch.nn.Module):
         stats["test_loss"] = test_loss
         stats["test_acc"] = test_acc
         stats["test_classification_report"] = test_class_report
-        stats.update(self._model_testing_callback(test_dataset))
+        test_callback = self._model_testing_callback(test_dataset)
+        if test_callback is not None:
+            stats.update(test_callback)
 
         return self.save_to_disk(stats, f"{model_name}-trained")
 
@@ -226,7 +232,6 @@ class LogitModel(BaseModel):
         stats["test_acc_discrete_argmax"] = argmax_stats["mean_acc"]
         return stats
 
-
     def generate_discrete_networks(self, method: str) -> BaseModel:
         raise NotImplementedError
 
@@ -249,7 +254,7 @@ class LogitModel(BaseModel):
         results = []
         for i in range(num_trials):
             # discretizes
-            disc_model = model.generate_discrete_networks(discretization_method)
+            disc_model = self.generate_discrete_networks(discretization_method)
             disc_model = disc_model.to(device)
             stats = disc_model.evaluate_model(dataset)
             results.append(stats)
