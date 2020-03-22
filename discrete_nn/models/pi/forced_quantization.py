@@ -4,24 +4,15 @@ This module implements the real valued (non convolutionary) network for the mnis
 import torch
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
-import numpy as np
-import tqdm
-import os
-import pickle
-from sklearn.metrics import accuracy_score
 
-from discrete_nn.models.base_model import AlternateDiscretizationBaseModel
+
+from discrete_nn.models.base_model import ForcedQuantizationBaseModel
 from discrete_nn.dataset.mnist import MNIST
-from discrete_nn.settings import model_path
-
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-if device == "cuda:0":
-    torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
 
-class MnistPiAltDiscrete(AlternateDiscretizationBaseModel):
+class PiForcedQuantization(ForcedQuantizationBaseModel):
     """
-    Real valued (non convolutionary) network for the mnist dataset
+    Real valued (non convolutionary) network for Pi arquitecture with forced quantization
     """
 
     def __init__(self):
@@ -85,45 +76,3 @@ class MnistPiAltDiscrete(AlternateDiscretizationBaseModel):
         return
 
 
-class DatasetMNIST(Dataset):
-    """
-    Dataset for pytorch's DataLoader
-    """
-
-    def __init__(self, x, y):
-        self.x = torch.from_numpy(x) * 2 - 1
-        self.y = torch.from_numpy(y).long()
-        self.x = self.x.to(device)
-        self.y = self.y.to(device)
-
-    def __len__(self):
-        return self.x.shape[0]
-
-    def __getitem__(self, item_inx):
-        return self.x[item_inx], self.y[item_inx]
-
-
-def train_model(real_model_folder):
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-
-    # basic dataset holder
-    mnist = MNIST(device, "flat")
-    # creates the dataloader for pytorch
-    batch_size = 100
-    train_loader = DataLoader(dataset=mnist.train, batch_size=batch_size,
-                              shuffle=True)
-    validation_loader = DataLoader(dataset=mnist.validation, batch_size=batch_size,
-                                   shuffle=False)
-    test_loader = DataLoader(dataset=mnist.test, batch_size=batch_size,
-                             shuffle=False)
-
-    net = MnistPiAltDiscrete()
-    net = net.to(device)
-    num_epochs = 100
-
-    net.train_model(train_loader, validation_loader, test_loader, num_epochs, "Mnist-Pi-alternate_discretization")
-
-if __name__ == "__main__":
-    torch.autograd.set_detect_anomaly(True)
-    print('Using device:', device)
-    train_model("MNIST-pi-real-trained-2020-3-8--h17m34")
