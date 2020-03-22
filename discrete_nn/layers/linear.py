@@ -12,7 +12,7 @@ class Linear(Module):
 
     def forward(self, x):
         # transpose the input matrix to (in_feat x n)
-        input_values = x.transpose(0, 1).double()
+        input_values = x.transpose(0, 1)
         out = torch.mm(self.weight, input_values)
         # need to return the matrix back to the original axis layout by transposing again
         out = out.transpose(0, 1)
