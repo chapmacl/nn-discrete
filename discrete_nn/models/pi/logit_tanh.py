@@ -3,10 +3,10 @@ from discrete_nn.layers.type_defs import ValueTypes, DiscreteWeights
 from discrete_nn.layers.logit_linear import LogitLinear
 from discrete_nn.layers.local_reparametrization import LocalReparametrization
 from discrete_nn.models.pi.real import PiReal
-from discrete_nn.models.base_model import BaseModel
+from discrete_nn.models.base_model import LogitModel
 
 
-class PiLogitTanh(BaseModel):
+class PiLogitTanh(LogitModel):
     """
     Logit-based weighted (non convolutionary) network
     """

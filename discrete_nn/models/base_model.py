@@ -195,7 +195,7 @@ class BaseModel(torch.nn.Module):
                 logger.info(f"Found checkpoint for {model_name} dated {ckp.date} at epoch {ckp.epoch}."
                             f" but cannot continue from checkpoint because continue_from_checkpoint is False")
         else:
-            logger.info(f"Could not find checkpouin for{model_name}")
+            logger.info(f"Could not find checkpoint for {model_name}")
 
         for epoch_in in tqdm(range(start_epoch_inx, epochs), initial=start_epoch_inx, total=epochs,
                              desc="Training Network. Epoch:"):
@@ -219,6 +219,7 @@ class BaseModel(torch.nn.Module):
 
             # calls subclasses callback so they can add any metric the wish
             val_callback = self._epoch_eval_callback(validation_dataset)
+            print(f"val callback is  {val_callback}-")
             if val_callback is not None:
                 for metric_name, metric_value in val_callback.items():
                     stats[metric_name].append(metric_value)
@@ -242,7 +243,7 @@ class BaseModel(torch.nn.Module):
         test_callback = self._model_testing_callback(test_dataset)
         if test_callback is not None:
             stats.update(test_callback)
-
+        print(f"test callback is  {val_callback}-")
         # removing checkpoint if any
         if os.path.exists(checkpoint_full_path):
             os.remove(checkpoint_full_path)

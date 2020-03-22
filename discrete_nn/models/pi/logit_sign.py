@@ -9,10 +9,10 @@ from discrete_nn.layers.sign import DistributionSign
 from discrete_nn.models.pi.discrete_sign import PiDiscreteSign
 from discrete_nn.layers.distribution_batchnorm import DistributionBatchnorm
 from discrete_nn.layers.local_reparametrization import LocalReparametrization
-from discrete_nn.models.base_model import BaseModel
+from discrete_nn.models.base_model import LogitModel
 
 
-class PiLogitSign(BaseModel):
+class PiLogitSign(LogitModel):
     """
     Real valued (non convolutionary) network for the mnist dataset
     """
