@@ -219,7 +219,7 @@ class BaseModel(torch.nn.Module):
 
             # calls subclasses callback so they can add any metric the wish
             val_callback = self._epoch_eval_callback(validation_dataset)
-            print(f"val callback is  {val_callback}-")
+            tqdm.write(f"val callback is  {val_callback}-")
             if val_callback is not None:
                 for metric_name, metric_value in val_callback.items():
                     stats[metric_name].append(metric_value)
