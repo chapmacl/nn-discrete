@@ -23,14 +23,14 @@ class PiLogitTanh(LogitModel):
         s2_l1_linear = LogitLinear(784, ValueTypes.REAL, 1200, real_model_params["L1_Linear_W"],
                                    real_model_params["L1_Linear_b"], discrete_weights)
         s3_l1_repar = LocalReparametrization()  # outputs a value and not a dist.
-        s4_l1_batchnorm = torch.nn.BatchNorm1d(1200, momentum=0.1)
+        s4_l1_batchnorm = torch.nn.BatchNorm1d(1200, track_running_stats=False)
         s5_l1_tanh = torch.nn.Tanh()
 
         s6_l2_dropout = torch.nn.Dropout(p=0.2)
         s7_l2_linear = LogitLinear(1200, ValueTypes.REAL, 1200, real_model_params["L2_Linear_W"],
                                    real_model_params["L2_Linear_b"], discrete_weights)
         s8_l2_repar = LocalReparametrization()  # outputs a value and not a dist.
-        s9_l2_batchnorm = torch.nn.BatchNorm1d(1200, momentum=0.1)
+        s9_l2_batchnorm = torch.nn.BatchNorm1d(1200, track_running_stats=False)
         s10_l2_tanh = torch.nn.Tanh()
 
         s6_l3_dropout = torch.nn.Dropout(p=0.3)
