@@ -6,13 +6,12 @@ import datetime
 import os
 import json
 from typing import Optional
-import pickle
 from sklearn.metrics import accuracy_score, classification_report
 from tqdm import tqdm
 from typing import Dict
 import numpy as np
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 from collections import defaultdict, namedtuple
 from discrete_nn.settings import model_path, checkpoint_path
 import gc
@@ -21,6 +20,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 Checkpoint = namedtuple("Checkpoint", ["parameters", "epoch", "date"])
+
 
 class BaseModel(torch.nn.Module):
     def __init__(self):
@@ -82,8 +82,8 @@ class BaseModel(torch.nn.Module):
         return stats
 
     def evaluate_and_save_to_disk(self, dataset, name):
-        """given a dataset extending Pytorch's Dataset class, and a name for the folder where the results will be placed,
-        evaluates the network."""
+        """given a dataset extending Pytorch's Dataset class, and a name for the folder where the results
+        will be placed, evaluates the network."""
         stats = self.evaluate_model(dataset)
         self.save_to_disk(stats, name, False)
 
@@ -95,11 +95,11 @@ class BaseModel(torch.nn.Module):
         class_report_dict = classification_report(targets, predictions, output_dict=True)
         return eval_loss, eval_acc, class_report_dict
 
-    def set_net_parameters(self, param_dict):
-        raise NotImplementedError
-
     def get_net_parameters(self):
-        raise NotImplementedError
+        return self.state_dict()
+
+    def set_net_parameters(self, param_dict):
+        self.load_state_dict(param_dict, strict=False)
 
     def _train_epoch(self, dataset_generator):
         self.train()
@@ -121,7 +121,7 @@ class BaseModel(torch.nn.Module):
             batch_loss_train.append(float(loss))
             predictions += torch.nn.functional.softmax(net_output, dim=1).argmax(dim=1).tolist()
             targets += Y.tolist()
-        # print(f"training losses {batch_loss_train}")
+
         return self._gen_stats(targets, predictions, batch_loss_train)
 
     def save_to_disk(self, stats, name: str, save_model=True):
@@ -130,7 +130,7 @@ class BaseModel(torch.nn.Module):
         :returns path to the folder containing the model and its metrics"""
         now = datetime.datetime.now()
         container_folder = os.path.join(model_path, name + f"-{now.year}-{now.month}-{now.day}"
-                                                                    f"--h{now.hour}m{now.minute}")
+                                        f"--h{now.hour}m{now.minute}")
 
         os.mkdir(container_folder)
 
@@ -148,7 +148,8 @@ class BaseModel(torch.nn.Module):
         return container_folder
 
     def save_checkpoint(self, epoch_number, checkpoint_file_path):
-        ckp = Checkpoint(epoch=epoch_number, parameters=self.get_net_parameters(), date=datetime.datetime.now().isoformat())
+        ckp = Checkpoint(epoch=epoch_number, parameters=self.get_net_parameters(),
+                         date=datetime.datetime.now().isoformat())
         torch.save(ckp, checkpoint_file_path)
 
     def train_model(self, training_dataset, validation_dataset, test_dataset: DataLoader, epochs, model_name,
@@ -171,8 +172,8 @@ class BaseModel(torch.nn.Module):
         if evaluate_before_train:
             eval_stats = defaultdict(list)
             test_loss, test_acc, test_class_report = self._evaluate(test_dataset)
-            eval_stats["test_loss"] = test_loss
-            eval_stats["test_acc"] = test_acc
+            eval_stats["test_loss"] = [test_loss]
+            eval_stats["test_acc"] = [test_acc]
             eval_stats["test_classification_report"] = test_class_report
             test_callback = self._model_testing_callback(test_dataset)
             if test_callback is not None:
@@ -192,7 +193,7 @@ class BaseModel(torch.nn.Module):
                 start_epoch_inx = ckp.epoch
             else:
                 logger.info(f"Found checkpoint for {model_name} dated {ckp.date} at epoch {ckp.epoch}."
-                             f" but cannot continue from checkpoint because continue_from_checkpoint is False")
+                            f" but cannot continue from checkpoint because continue_from_checkpoint is False")
         else:
             logger.info(f"Could not find checkpouin for{model_name}")
 
@@ -228,15 +229,15 @@ class BaseModel(torch.nn.Module):
                 self.save_checkpoint(epoch_in+1, checkpoint_full_path)
 
             tqdm.write(f"epoch {epoch_in + 1}/{epochs}: "
-                  f"train loss: {training_loss:.4f} / "
-                  f"validation loss: {validation_loss:.4f} /"
-                  f"validation acc: {validation_acc} /"
-                  f"validation precision: {validation_class_report['weighted avg']['precision']} /"
-                  f"validation recall: {validation_class_report['weighted avg']['recall']} /")
+                       f"train loss: {training_loss:.4f} / "
+                       f"validation loss: {validation_loss:.4f} /"
+                       f"validation acc: {validation_acc} /"
+                       f"validation precision: {validation_class_report['weighted avg']['precision']} /"
+                       f"validation recall: {validation_class_report['weighted avg']['recall']} /")
 
         test_loss, test_acc, test_class_report = self._evaluate(test_dataset)
-        stats["test_loss"] = test_loss
-        stats["test_acc"] = test_acc
+        stats["test_loss"] = [test_loss]
+        stats["test_acc"] = [test_acc]
         stats["test_classification_report"] = test_class_report
         test_callback = self._model_testing_callback(test_dataset)
         if test_callback is not None:
@@ -249,10 +250,11 @@ class BaseModel(torch.nn.Module):
 
 
 class LogitModel(BaseModel):
+
     def __init__(self):
         super().__init__()
 
-    def _epoch_eval_callback(self, validation_dataset : DataLoader) -> Optional[dict]:
+    def _epoch_eval_callback(self, validation_dataset: DataLoader) -> Optional[dict]:
         sample_stats = self.evaluate_discretized_from_logit_models("sample", validation_dataset, 10, None)
         argmax_stats = self.evaluate_discretized_from_logit_models("argmax", validation_dataset, 1, None)
         stats = dict()
@@ -281,7 +283,6 @@ class LogitModel(BaseModel):
         Given a logit model (such as a ternary one), generates a discrete one from it using the provided
         discretization method and evaluates it with dataset.
 
-        :param model: the logit model
         :param discretization_method: e.g. sample
         :param dataset: the dataset to evaluate the discrete model with
         :param num_trials: the number of independent evaluations (discretizing the model again everytime)
@@ -345,8 +346,8 @@ class AlternateDiscretizationBaseModel(BaseModel):
         if evaluate_before_train:
             eval_stats = defaultdict(list)
             test_loss, test_acc, test_class_report = self._evaluate(test_dataset)
-            eval_stats["test_loss"] = test_loss
-            eval_stats["test_acc"] = test_acc
+            eval_stats["test_loss"] = [test_loss]
+            eval_stats["test_acc"] = [test_acc]
             eval_stats["test_classification_report"] = test_class_report
             self.save_to_disk(eval_stats, f"{model_name}-untrained")
         stats = defaultdict(list)
@@ -381,7 +382,7 @@ class AlternateDiscretizationBaseModel(BaseModel):
                   f"validation recall: {validation_class_report['weighted avg']['recall']} /")
 
         test_loss, test_acc, test_class_report = self._evaluate(test_dataset)
-        stats["test_loss"] = test_loss
-        stats["test_acc"] = test_acc
+        stats["test_loss"] = [test_loss]
+        stats["test_acc"] = [test_acc]
         stats["test_classification_report"] = test_class_report
         self.save_to_disk(stats, f"{model_name}-trained")
