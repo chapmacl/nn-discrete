@@ -311,19 +311,13 @@ class LogitModel(BaseModel):
         return stats
 
 
-class AlternateDiscretizationBaseModel(BaseModel):
+class ForcedQuantizationBaseModel(BaseModel):
     """
     This class is the base implementation of generic models which apply a discretization step during training
     """
 
     def __init__(self):
         super().__init__()
-
-    def set_net_parameters(self, param_dict):
-        raise NotImplementedError
-
-    def get_net_parameters(self):
-        raise NotImplementedError
 
     def discretize(self):
         """Discretizes a model's weights. Model dependent"""
