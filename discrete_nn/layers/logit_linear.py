@@ -1,8 +1,8 @@
 """
 Implements different linear layer classes by extending from torch.nn.Module
 """
-from discrete_nn.layers.type_defs import ValueTypes
-from discrete_nn.layers.weight_utils import discretize_weights_probabilistic
+from discrete_nn.layers.type_defs import ValueTypes, DiscreteWeights
+from discrete_nn.layers.weight_utils import discretize_weights_probabilistic, generate_weight_probabilities, get_gaussian_dist_parameters
 
 from torch import nn
 from torch.distributions import Multinomial
@@ -11,7 +11,7 @@ import torch
 
 class LogitLinear(nn.Module):
     def __init__(self, input_features, input_feature_type: ValueTypes, output_features, initialization_weights,
-                 initialization_bias, discretized_values, normalize_activations: bool = False):
+                 initialization_bias, discretized_values: DiscreteWeights, normalize_activations: bool = False):
         """
         Initializes a linear layer with discrete weights
         :param input_features: the input dimension
@@ -29,7 +29,7 @@ class LogitLinear(nn.Module):
         self.in_feat = input_features
         self.in_feat_type = input_feature_type
         self.ou_feat = output_features
-        self.discrete_values = sorted(discretized_values)
+        self.discrete_values = sorted(discretized_values.value)
         self.normalize_activations = normalize_activations
         # these are the tunable parameters
         self.W_logits = torch.nn.Parameter(discretize_weights_probabilistic(initialization_weights,
@@ -46,8 +46,8 @@ class LogitLinear(nn.Module):
         :returs: tuple (sampled_w, sampled_b) where sampled_w and sampled_b are tensors of the shapes
         (output_features x input_features) and (output_features x 1)
         """
-        probabilities_w = self.generate_weight_probabilities(self.W_logits).cpu()
-        probabilities_b = self.generate_weight_probabilities(self.b_logits).cpu()
+        probabilities_w = generate_weight_probabilities(self.W_logits).cpu()
+        probabilities_b = generate_weight_probabilities(self.b_logits).cpu()
         assert(probabilities_b.shape != probabilities_w.shape)
         # logit probabilities must be in inner dimension for torch.distribution.Multinomial
         probabilities_w = probabilities_w.transpose(0, 1).transpose(1, 2)
@@ -94,41 +94,6 @@ class LogitLinear(nn.Module):
 
         return sampled_w, sampled_b
 
-    def generate_weight_probabilities(self, logit_weights):
-        """
-        calculates the probabilities of all discrete weights for the logits provided
-
-        :param logit_weights: a tensor with dimensions (discretization levels x output features x input_features)
-        with the discrete distribution as logits
-        :return:  a tensor with dimensions (discretization levels x output features x input_features)
-        with the discrete distribution as probabilities
-        """
-        weight_probabilities = torch.exp(logit_weights)
-        weight_probabilities = weight_probabilities / weight_probabilities.sum(dim=0)
-        return weight_probabilities
-
-    def get_gaussian_dist_parameters(self, logit_weights):
-        """
-        Fits a gaussian distribution to the logits in logit_weights.
-        :param logit_weights: a tensor with dimensions (discretization levels x output features x input_features)
-        with the discrete distribution as logits
-        :return: a tuple with the means of the gaussian distributions as a (output features x input_features) tensor
-        and a the standard deviations in a tensor of the same format
-        """
-        weight_probabilities = self.generate_weight_probabilities(logit_weights)
-        discrete_val_tensor = torch.zeros_like(logit_weights)
-        # set the device to match that of logits
-        discrete_val_tensor = discrete_val_tensor.to(logit_weights.device)
-        for inx, discrete_weight in enumerate(self.discrete_values):
-            discrete_val_tensor[inx, :, :] = discrete_weight
-        discrete_val_tensor.requires_grad = True
-        weight_mean = discrete_val_tensor * weight_probabilities
-        weight_mean = weight_mean.sum(dim=0)
-
-        weight_var = weight_probabilities * torch.pow(discrete_val_tensor - weight_mean, 2)
-        weight_var = weight_var.sum(dim=0)
-        return weight_mean, weight_var
-
     def forward(self, x: torch.Tensor):
         """
         Applies an input to the network. Depending on the type of the input value a different input value is expected
@@ -138,9 +103,9 @@ class LogitLinear(nn.Module):
         dimension contains, in order,
         the mean and variance,  n is the number of samples and, out_feat is the number of out features.
         """
-        w_mean, w_var = self.get_gaussian_dist_parameters(self.W_logits)
-        b_mean, b_var = self.get_gaussian_dist_parameters(self.b_logits)
-        # print(f"maximum abs logit weight {self.W_logits.abs().max()}")
+        w_mean, w_var = get_gaussian_dist_parameters(self.W_logits, self.discrete_values)
+        b_mean, b_var = get_gaussian_dist_parameters(self.b_logits, self.discrete_values)
+
         if self.in_feat_type == ValueTypes.REAL:
             # transpose the input matrix to (in_feat x n)
             input_values = x.transpose(0, 1).double()
@@ -173,31 +138,11 @@ class LogitLinear(nn.Module):
         return torch.stack([output_mean, output_var], dim=1)
 
 
-class TernaryLinear(LogitLinear):
-    def __init__(self, input_features: int, input_feature_type: ValueTypes, output_features: int, real_init_weights,
-                 real_init_bias, normalize_activations: bool = False):
-        """
-        Discretizes the weights from a matrix with real weights based on the "probabilistic" method proposed in
-        the paper (pg. 9, last paragraph)
-        :param input_features: the number of inputs
-        :param input_feature_type: the type of the input (e.g. real, gaussian distribution)
-        :param output_features: the number of outputs
-        :param real_init_weights: the real initialization weights
-        :param real_init_bias: the real initialization bias weights
-        :param normalize_activations: if true normalize the activations by dividing by the number of the layer's inputs
-        (including bias)
-        :return: a (num_discrete_values x output_features x input_features) with the probabilities
-
-        """
-        super().__init__(input_features, input_feature_type, output_features, real_init_weights, real_init_bias,
-                         [-1, 0, 1], normalize_activations)
-
-
 if __name__ == "__main__":
     test_weight_matrix = torch.tensor([[2.1, 30, -0.5, -2], [4., 0., 2., -1.], [2.1, 0.3, -0.5, -2]])
     test_bias_matrix = torch.tensor([[2.1, 0.3, -0.5]])
     test_samples = torch.rand(10, 4).double()  # 10 samples, 4 in dimensions
-    layer = LogitLinear(4, ValueTypes.REAL, 3, test_weight_matrix, test_bias_matrix, [-2, -1, 0, 1, 2])
+    layer = LogitLinear(4, ValueTypes.REAL, 3, test_weight_matrix, test_bias_matrix, DiscreteWeights.TERNARY)
     x_out = layer.forward(test_samples)
     print(x_out.shape)
     # discretizing weights
