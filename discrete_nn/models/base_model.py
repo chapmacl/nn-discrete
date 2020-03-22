@@ -19,7 +19,7 @@ import gc
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-Checkpoint = namedtuple("Checkpoint", ["parameters", "epoch", "date"])
+Checkpoint = namedtuple("Checkpoint", ["parameters", "epoch", "date", "metrics"])
 
 
 class BaseModel(torch.nn.Module):
@@ -147,9 +147,9 @@ class BaseModel(torch.nn.Module):
 
         return container_folder
 
-    def save_checkpoint(self, epoch_number, checkpoint_file_path):
+    def save_checkpoint(self, epoch_number, metrics, checkpoint_file_path):
         ckp = Checkpoint(epoch=epoch_number, parameters=self.get_net_parameters(),
-                         date=datetime.datetime.now().isoformat())
+                         date=datetime.datetime.now().isoformat(), metrics=metrics)
         torch.save(ckp, checkpoint_file_path)
 
     def train_model(self, training_dataset, validation_dataset, test_dataset: DataLoader, epochs, model_name,
@@ -180,6 +180,7 @@ class BaseModel(torch.nn.Module):
                 eval_stats.update(test_callback)
             self.save_to_disk(eval_stats, f"{model_name}-untrained", save_model=False)
         stats = defaultdict(list)
+
         start_epoch_inx = 0
         # check if there is a checkpoint
         model_save_folder = f"{model_name}-trained"
@@ -190,6 +191,7 @@ class BaseModel(torch.nn.Module):
                 logger.info(f"Found checkpoint for {model_name} dated {ckp.date} at epoch {ckp.epoch}."
                             f" Continuing from checkpoint")
                 self.set_net_parameters(ckp.parameters)
+                stats = ckp.metrics
                 start_epoch_inx = ckp.epoch
             else:
                 logger.info(f"Found checkpoint for {model_name} dated {ckp.date} at epoch {ckp.epoch}."
@@ -227,7 +229,7 @@ class BaseModel(torch.nn.Module):
             # saves checkpoint if needed
             if (epoch_in+1) % checkpoint_frequency == 0:
                 # saves checkpoint
-                self.save_checkpoint(epoch_in+1, checkpoint_full_path)
+                self.save_checkpoint(epoch_in+1, stats, checkpoint_full_path)
 
             tqdm.write(f"epoch {epoch_in + 1}/{epochs}: "
                        f"train loss: {training_loss:.4f} / "
@@ -243,7 +245,7 @@ class BaseModel(torch.nn.Module):
         test_callback = self._model_testing_callback(test_dataset)
         if test_callback is not None:
             stats.update(test_callback)
-        print(f"test callback is  {val_callback}-")
+        print(f"test callback is  {test_callback}-")
         # removing checkpoint if any
         if os.path.exists(checkpoint_full_path):
             os.remove(checkpoint_full_path)
