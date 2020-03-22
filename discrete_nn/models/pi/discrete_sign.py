@@ -24,14 +24,14 @@ class PiDiscreteSign(BaseModel):
 
             torch.nn.Dropout(p=0.2),
             torch.nn.Linear(784, 1200),
-            torch.nn.BatchNorm1d(1200, momentum=0.1),
+            torch.nn.BatchNorm1d(1200, track_running_stats=False),
             # momentum equivalent to alpha on reference impl.
             # should batch normalization be here or after the activation function ?
             DiscreteSign(),
             #
             torch.nn.Dropout(p=0.4),
             torch.nn.Linear(1200, 1200),
-            torch.nn.BatchNorm1d(1200, momentum=0.1),
+            torch.nn.BatchNorm1d(1200, track_running_stats=False),
             DiscreteSign(),
             #
             torch.nn.Dropout(p=0.4),
