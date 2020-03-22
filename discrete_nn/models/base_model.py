@@ -224,7 +224,7 @@ class BaseModel(torch.nn.Module):
                     stats[metric_name].append(metric_value)
 
             # saves checkpoint if needed
-            if epoch_in+1 % 3 == 0:
+            if (epoch_in+1) % checkpoint_frequency == 0:
                 # saves checkpoint
                 self.save_checkpoint(epoch_in+1, checkpoint_full_path)
 
