@@ -19,7 +19,8 @@ import gc
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-Checkpoint = namedtuple("Checkpoint", ["parameters", "epoch", "date", "metrics"])
+Checkpoint = namedtuple("Checkpoint", ["parameters", "epoch", "date", "metrics", "train_data_set",
+                                       "validation_data_set", "test_data_set"])
 
 
 class BaseModel(torch.nn.Module):
@@ -147,8 +148,10 @@ class BaseModel(torch.nn.Module):
 
         return container_folder
 
-    def save_checkpoint(self, epoch_number, metrics, checkpoint_file_path):
-        ckp = Checkpoint(epoch=epoch_number, parameters=self.get_net_parameters(),
+    def save_checkpoint(self, epoch_number, metrics, training_data_set, validation_data_set, test_dataset,
+                        checkpoint_file_path):
+        ckp = Checkpoint(epoch=epoch_number, parameters=self.get_net_parameters(), test_data_set=test_dataset,
+                         train_data_set=training_data_set, validation_data_set=validation_data_set,
                          date=datetime.datetime.now().isoformat(), metrics=metrics)
         torch.save(ckp, checkpoint_file_path)
 
@@ -168,17 +171,6 @@ class BaseModel(torch.nn.Module):
         :param checkpoint_frequency: the frequency at which checkpoints are saved (in epochs)
         :return: the path to the folder where metrics were saved
         """
-
-        if evaluate_before_train:
-            eval_stats = defaultdict(list)
-            test_loss, test_acc, test_class_report = self._evaluate(test_dataset)
-            eval_stats["test_loss"] = [test_loss]
-            eval_stats["test_acc"] = [test_acc]
-            eval_stats["test_classification_report"] = test_class_report
-            test_callback = self._model_testing_callback(test_dataset)
-            if test_callback is not None:
-                eval_stats.update(test_callback)
-            self.save_to_disk(eval_stats, f"{model_name}-untrained", save_model=False)
         stats = defaultdict(list)
 
         start_epoch_inx = 0
@@ -189,15 +181,31 @@ class BaseModel(torch.nn.Module):
             ckp: Checkpoint = torch.load(checkpoint_full_path, map_location="cpu")
             if continue_from_checkpoint:
                 logger.info(f"Found checkpoint for {model_name} dated {ckp.date} at epoch {ckp.epoch}."
-                            f" Continuing from checkpoint")
+                            f" Continuing from checkpoint.")
                 self.set_net_parameters(ckp.parameters)
                 stats = ckp.metrics
                 start_epoch_inx = ckp.epoch
+                training_dataset = ckp.train_data_set
+                test_dataset = ckp.test_data_set
+                validation_dataset = ckp.validation_data_set
+                logger.info(f"Loading train/validation/test datasets from checkpoint to preserve class splits.")
             else:
                 logger.info(f"Found checkpoint for {model_name} dated {ckp.date} at epoch {ckp.epoch}."
                             f" but cannot continue from checkpoint because continue_from_checkpoint is False")
         else:
             logger.info(f"Could not find checkpoint for {model_name}")
+
+        if evaluate_before_train and start_epoch_inx == 0:
+            # should only evaluate if we are not loading from a checkpoint! Uses start epoch inx as a proxy for that
+            eval_stats = defaultdict(list)
+            test_loss, test_acc, test_class_report = self._evaluate(test_dataset)
+            eval_stats["test_loss"] = [test_loss]
+            eval_stats["test_acc"] = [test_acc]
+            eval_stats["test_classification_report"] = test_class_report
+            test_callback = self._model_testing_callback(test_dataset)
+            if test_callback is not None:
+                eval_stats.update(test_callback)
+            self.save_to_disk(eval_stats, f"{model_name}-untrained", save_model=False)
 
         for epoch_in in tqdm(range(start_epoch_inx, epochs), initial=start_epoch_inx, total=epochs,
                              desc="Training Network. Epoch:"):
