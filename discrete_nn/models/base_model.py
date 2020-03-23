@@ -237,7 +237,8 @@ class BaseModel(torch.nn.Module):
             # saves checkpoint if needed
             if (epoch_in+1) % checkpoint_frequency == 0:
                 # saves checkpoint
-                self.save_checkpoint(epoch_in+1, stats, checkpoint_full_path)
+                self.save_checkpoint(epoch_in+1, stats, training_dataset, validation_dataset, test_dataset,
+                                     checkpoint_full_path)
 
             tqdm.write(f"epoch {epoch_in + 1}/{epochs}: "
                        f"train loss: {training_loss:.4f} / "
