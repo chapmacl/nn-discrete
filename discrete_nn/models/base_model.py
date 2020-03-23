@@ -173,16 +173,20 @@ class BaseModel(torch.nn.Module):
         """
         stats = defaultdict(list)
 
+        # getting device the models parameters are using
+        device_net = list(self.get_net_parameters().values())[0].device
+
         start_epoch_inx = 0
         # check if there is a checkpoint
         model_save_folder = f"{model_name}-trained"
         checkpoint_full_path = os.path.join(checkpoint_path, f"ckp_{model_name}.pickle")
         if os.path.exists(checkpoint_full_path):
-            ckp: Checkpoint = torch.load(checkpoint_full_path, map_location="cpu")
+            ckp: Checkpoint = torch.load(checkpoint_full_path, map_location=device_net)
             if continue_from_checkpoint:
                 logger.info(f"Found checkpoint for {model_name} dated {ckp.date} at epoch {ckp.epoch}."
                             f" Continuing from checkpoint.")
-                self.set_net_parameters(ckp.parameters)
+
+                self.set_net_parameters(ckp.parameters.items())
                 stats = ckp.metrics
                 start_epoch_inx = ckp.epoch
                 training_dataset = ckp.train_data_set
