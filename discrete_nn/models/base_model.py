@@ -186,7 +186,7 @@ class BaseModel(torch.nn.Module):
                 logger.info(f"Found checkpoint for {model_name} dated {ckp.date} at epoch {ckp.epoch}."
                             f" Continuing from checkpoint.")
 
-                self.set_net_parameters(ckp.parameters.items())
+                self.set_net_parameters(ckp.parameters)
                 stats = ckp.metrics
                 start_epoch_inx = ckp.epoch
                 training_dataset = ckp.train_data_set
