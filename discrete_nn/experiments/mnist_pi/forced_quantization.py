@@ -4,7 +4,7 @@ from discrete_nn.dataset.mnist import MNIST
 from discrete_nn.models.pi.forced_quantization import PiForcedQuantization
 
 
-def train_model(real_model_folder):
+def train_model():
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     # basic dataset holder
@@ -27,4 +27,4 @@ def train_model(real_model_folder):
 
 if __name__ == "__main__":
     torch.autograd.set_detect_anomaly(True)
-    train_model("MNIST-pi-real-trained-2020-3-8--h17m34")
+    train_model()
