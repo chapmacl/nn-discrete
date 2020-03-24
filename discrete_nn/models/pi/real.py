@@ -1,5 +1,5 @@
 """
-This module implements the real valued (non convolutionary) network for the mnist dataset
+This module implements the real valued (non convolutionary) network for the PI model
 """
 import torch
 
@@ -8,7 +8,7 @@ from discrete_nn.models.base_model import BaseModel
 
 class PiReal(BaseModel):
     """
-    Real valued (non convolutionary) network for the mnist dataset
+    Real valued (non convolutionary) network for the PI model
     """
 
     def __init__(self):
@@ -20,14 +20,14 @@ class PiReal(BaseModel):
         self.netlayers = torch.nn.Sequential(
 
             torch.nn.Dropout(p=0.2),
-            torch.nn.Linear(784, 1200),
+            torch.nn.Linear(784, 1200, bias=False),
             torch.nn.BatchNorm1d(1200, track_running_stats=False),
             # momentum equivalent to alpha on reference impl.
             # should batch normalization be here or after the activation function ?
             torch.nn.Tanh(),
             #
             torch.nn.Dropout(p=0.4),
-            torch.nn.Linear(1200, 1200),
+            torch.nn.Linear(1200, 1200, bias=False),
             torch.nn.BatchNorm1d(1200, track_running_stats=False),
             torch.nn.Tanh(),
             #
@@ -69,4 +69,3 @@ class PiReal(BaseModel):
         repr_dict["L3_Linear_W"] = internal_dict["netlayers.9.weight"]
         repr_dict["L3_Linear_b"] = internal_dict["netlayers.9.bias"].reshape(-1, 1)
         return repr_dict
-

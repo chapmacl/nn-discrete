@@ -1,5 +1,5 @@
 """
-This module implements the real valued (non convolutionary) network for the mnist dataset
+This module implements the real valued (non convolutionary) network for the PI Model
 """
 import torch
 from torch.utils.data import Dataset
@@ -12,7 +12,7 @@ from discrete_nn.dataset.mnist import MNIST
 
 class PiForcedQuantization(ForcedQuantizationBaseModel):
     """
-    Real valued (non convolutionary) network for Pi arquitecture with forced quantization
+    Real valued (non convolutionary) network for Pi architecture with forced quantization
     """
 
     def __init__(self):

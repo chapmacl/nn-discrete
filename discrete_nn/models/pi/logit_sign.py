@@ -1,5 +1,5 @@
 """
-This module implements the real valued (non convolutionary) network for the mnist dataset
+This module implements the real valued (non convolutionary) network for the PI model
 """
 import torch
 from discrete_nn.layers.type_defs import ValueTypes, InputFormat, DiscreteWeights
@@ -14,7 +14,7 @@ from discrete_nn.models.base_model import LogitModel
 
 class PiLogitSign(LogitModel):
     """
-    Real valued (non convolutionary) network for the mnist dataset
+    Real valued (non convolutionary) network for the Pi architecture.
     """
 
     def __init__(self, real_model_params, discrete_weights: DiscreteWeights):
@@ -27,7 +27,7 @@ class PiLogitSign(LogitModel):
         self.netlayers = torch.nn.Sequential(
             torch.nn.Dropout(p=0.1),
             LogitLinear(784, ValueTypes.REAL, 1200, real_model_params["L1_Linear_W"],
-                        real_model_params["L1_Linear_b"], discrete_weights),
+                        None, discrete_weights),
             DistributionBatchnorm(InputFormat.FLAT_ARRAY, 1200, real_model_params["L1_BatchNorm_W"],
                                   real_model_params["L1_BatchNorm_b"]),  # ?, momentum=0.1)
             DistributionSign(InputFormat.FLAT_ARRAY),
@@ -35,7 +35,7 @@ class PiLogitSign(LogitModel):
 
             torch.nn.Dropout(p=0.2),
             LogitLinear(1200, ValueTypes.REAL, 1200, real_model_params["L2_Linear_W"],
-                        real_model_params["L2_Linear_b"], discrete_weights),
+                        None, discrete_weights),
             DistributionBatchnorm(InputFormat.FLAT_ARRAY, 1200, real_model_params["L2_BatchNorm_W"],
                                   real_model_params["L2_BatchNorm_b"]),  # ?, momentum=0.1)
             DistributionSign(InputFormat.FLAT_ARRAY),
@@ -77,11 +77,9 @@ class PiLogitSign(LogitModel):
         l3_sampled_w, l3_sampled_b = l3_layer.generate_discrete_network(method)
         state_dict = {
             "L1_Linear_W": l1_sampled_w,
-            "L1_Linear_b": l1_sampled_b,
             "L1_BatchNorm_W": self.state_dict()['netlayers.2.gamma'],
             "L1_BatchNorm_b": self.state_dict()['netlayers.2.beta'],
             "L2_Linear_W": l2_sampled_w,
-            "L2_Linear_b": l2_sampled_b,
             "L2_BatchNorm_W": self.state_dict()['netlayers.7.gamma'],
             "L2_BatchNorm_b": self.state_dict()['netlayers.7.beta'],
             "L3_Linear_W": l3_sampled_w,

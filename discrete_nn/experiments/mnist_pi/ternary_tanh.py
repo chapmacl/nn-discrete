@@ -1,6 +1,3 @@
-"""
-This module implements the logit-based (non convolutionary) experiment for the mnist dataset
-"""
 import os
 import torch
 from torch.utils.data import DataLoader

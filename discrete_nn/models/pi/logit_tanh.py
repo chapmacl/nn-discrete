@@ -21,14 +21,14 @@ class PiLogitTanh(LogitModel):
 
         s1_l1_dropout = torch.nn.Dropout(p=0.1)
         s2_l1_linear = LogitLinear(784, ValueTypes.REAL, 1200, real_model_params["L1_Linear_W"],
-                                   real_model_params["L1_Linear_b"], discrete_weights)
+                                   None, discrete_weights)
         s3_l1_repar = LocalReparametrization()  # outputs a value and not a dist.
         s4_l1_batchnorm = torch.nn.BatchNorm1d(1200, track_running_stats=False)
         s5_l1_tanh = torch.nn.Tanh()
 
         s6_l2_dropout = torch.nn.Dropout(p=0.2)
         s7_l2_linear = LogitLinear(1200, ValueTypes.REAL, 1200, real_model_params["L2_Linear_W"],
-                                   real_model_params["L2_Linear_b"], discrete_weights)
+                                   None, discrete_weights)
         s8_l2_repar = LocalReparametrization()  # outputs a value and not a dist.
         s9_l2_batchnorm = torch.nn.BatchNorm1d(1200, track_running_stats=False)
         s10_l2_tanh = torch.nn.Tanh()
@@ -91,11 +91,9 @@ class PiLogitTanh(LogitModel):
         l3_sampled_w, l3_sampled_b = l3_layer.generate_discrete_network(method)
         state_dict = {
             "L1_Linear_W": l1_sampled_w,
-            "L1_Linear_b": l1_sampled_b,
             "L1_BatchNorm_W": self.state_dict()['netlayers.3.weight'],
             "L1_BatchNorm_b": self.state_dict()['netlayers.3.bias'],
             "L2_Linear_W": l2_sampled_w,
-            "L2_Linear_b": l2_sampled_b,
             "L2_BatchNorm_W": self.state_dict()['netlayers.8.weight'],
             "L2_BatchNorm_b": self.state_dict()['netlayers.8.bias'],
             "L3_Linear_W": l3_sampled_w,

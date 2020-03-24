@@ -2,25 +2,15 @@
 This module implements the real valued (non convolutionary) network for the mnist dataset
 """
 import torch
-from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
-import numpy as np
-import tqdm
-import os
-import pickle
-from sklearn.metrics import accuracy_score
 
-from discrete_nn.models.base_model import AlternateDiscretizationBaseModel
+
+from discrete_nn.models.base_model import BaseModel
 from discrete_nn.dataset.mnist import MNIST
-from discrete_nn.settings import model_path
 from discrete_nn.layers.Flatten import Flatten
 
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-if device == "cuda:0":
-    torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
-
-class MnistAlternateDiscreteConv(AlternateDiscretizationBaseModel):
+class MnistReal(BaseModel):
     """
     Real valued (non convolutionary) network for the mnist dataset
     """
@@ -31,26 +21,25 @@ class MnistAlternateDiscreteConv(AlternateDiscretizationBaseModel):
         self.netlayers = torch.nn.Sequential(
 
             torch.nn.Conv2d(1, 32, 5, stride=1, bias=False, padding=2),
-            torch.nn.BatchNorm2d(32, momentum=0.1),
+            torch.nn.BatchNorm2d(32, track_running_stats=False),
             torch.nn.Tanh(),
             torch.nn.MaxPool2d(2),
             #
             torch.nn.Dropout(p=0.2),
             torch.nn.Conv2d(32, 64, 5, stride=1, bias=False, padding=2),
-            torch.nn.BatchNorm2d(64, momentum=0.1),
+            torch.nn.BatchNorm2d(64, track_running_stats=False),
             torch.nn.Tanh(),
             torch.nn.MaxPool2d(2),
-
             #
             Flatten(),
             torch.nn.Dropout(p=0.3),
-            torch.nn.Linear(3136, 512),
-            torch.nn.BatchNorm1d(512, momentum=0.1),
+            torch.nn.Linear(3136, 512, bias=False),
+            torch.nn.BatchNorm1d(512, track_running_stats=False),
             torch.nn.Tanh(),
             #
             torch.nn.Linear(512, 10)
         )
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-3, weight_decay=1e-4)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-3, weight_decay=1e-6)
         self.loss_funct = torch.nn.CrossEntropyLoss()
 
     def forward(self, x):
@@ -90,41 +79,6 @@ class MnistAlternateDiscreteConv(AlternateDiscretizationBaseModel):
         repr_dict["L4_Linear_b"] = internal_dict["netlayers.14.bias"].reshape(-1, 1)
         return repr_dict
 
-    def discretize(self):
-        # Manually adjust the weights
-        modules = self._modules["netlayers"]._modules
-        layerIndices = ["0", "5", "11", "14"]
-        for mod in layerIndices:
-            layer = modules[str(mod)]
-            if hasattr(layer, "weight"):
-                data = layer.weight
-                for x in range(0, len(data)):
-                    min = torch.min(data[x])
-                    max = torch.max(data[x])
-                    data[x] = 2 * ((data[x] - min) / (max - min)) - 1
-                    data[x] = torch.round(data[x])     #Use this for Ternary
-                    #data[x] = torch.round(data[x] / 0.5) * 0.5  # Use this for Quinary
-        return
-
-
-class DatasetMNIST(Dataset):
-    """
-    Dataset for pytorch's DataLoader
-    """
-
-    def __init__(self, x, y):
-        self.x = torch.from_numpy(x) * 2 - 1
-        self.y = torch.from_numpy(y).long()
-        self.x = self.x.reshape((self.x.shape[0], 1, 28, 28))
-        self.x = self.x.to(device)
-        self.y = self.y.to(device)
-
-    def __len__(self):
-        return self.x.shape[0]
-
-    def __getitem__(self, item_inx):
-        return self.x[item_inx], self.y[item_inx]
-
 
 def train_model():
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -140,14 +94,14 @@ def train_model():
                                    shuffle=False)
     test_loader = DataLoader(dataset=mnist.test, batch_size=batch_size,
                              shuffle=False)
-    net = MnistAlternateDiscreteConv()
+
+    net = MnistReal()
     net = net.to(device)
 
     num_epochs = 100
     # will save metrics and model to disk. returns the path to metrics and saved model
-    return net.train_model(train_loader, validation_loader, test_loader, num_epochs, model_name="MNIST-conv-alt-conv")
+    return net.train_model(train_loader, validation_loader, test_loader, num_epochs, model_name="MNIST-real-conv")
 
 
 if __name__ == "__main__":
-    print('Using device:', device)
     train_model()
