@@ -15,12 +15,8 @@ from discrete_nn.dataset.mnist import MNIST
 from discrete_nn.settings import model_path
 from discrete_nn.layers.Flatten import Flatten
 
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-if device == "cuda:0":
-    torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
-
-class MnistAlternateDiscreteConv(ForcedQuantizationBaseModel):
+class ConvForcedQuantization(ForcedQuantizationBaseModel):
     """
     Real valued (non convolutionary) network for the conv dataset
     """
