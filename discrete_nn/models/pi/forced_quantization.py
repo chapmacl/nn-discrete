@@ -21,14 +21,14 @@ class PiForcedQuantization(ForcedQuantizationBaseModel):
         self.netlayers = torch.nn.Sequential(
 
             torch.nn.Dropout(p=0.2),
-            torch.nn.Linear(784, 1200),
+            torch.nn.Linear(784, 1200, bias=False),
             torch.nn.BatchNorm1d(1200, momentum=0.1),
             # momentum equivalent to alpha on reference impl.
             # should batch normalization be here or after the activation function ?
             torch.nn.Tanh(),
             #
             torch.nn.Dropout(p=0.4),
-            torch.nn.Linear(1200, 1200),
+            torch.nn.Linear(1200, 1200, bias=False),
             torch.nn.BatchNorm1d(1200, momentum=0.1),
             torch.nn.Tanh(),
             #
@@ -48,11 +48,11 @@ class PiForcedQuantization(ForcedQuantizationBaseModel):
 
         repr_dict = dict()
         repr_dict["L1_Linear_W"] = internal_dict["netlayers.1.weight"]
-        repr_dict["L1_Linear_b"] = internal_dict["netlayers.1.bias"].reshape(-1, 1)
+        #repr_dict["L1_Linear_b"] = internal_dict["netlayers.1.bias"].reshape(-1, 1)
         repr_dict["L1_BatchNorm_W"] = internal_dict["netlayers.2.weight"]
         repr_dict["L1_BatchNorm_b"] = internal_dict["netlayers.2.bias"]
         repr_dict["L2_Linear_W"] = internal_dict["netlayers.5.weight"]
-        repr_dict["L2_Linear_b"] = internal_dict["netlayers.5.bias"].reshape(-1, 1)
+        #repr_dict["L2_Linear_b"] = internal_dict["netlayers.5.bias"].reshape(-1, 1)
         repr_dict["L2_BatchNorm_W"] = internal_dict["netlayers.6.weight"]
         repr_dict["L2_BatchNorm_b"] = internal_dict["netlayers.6.bias"]
         repr_dict["L3_Linear_W"] = internal_dict["netlayers.9.weight"]
