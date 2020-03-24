@@ -12,7 +12,7 @@ from discrete_nn.layers.local_reparametrization import LocalReparametrization
 from discrete_nn.models.base_model import LogitModel
 
 
-class PiLogitSign(LogitModel):
+class PiNoBiasLogitSign(LogitModel):
     """
     Real valued (non convolutionary) network for the mnist dataset
     """

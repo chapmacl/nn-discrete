@@ -42,11 +42,9 @@ class PiNoBiasReal(BaseModel):
     def set_net_parameters(self, param_dict):
         new_state_dict = {
             "netlayers.1.weight": param_dict["L1_Linear_W"],
-            "netlayers.1.bias": param_dict["L1_Linear_b"].reshape(-1),
             'netlayers.2.weight': param_dict["L1_BatchNorm_W"],
             'netlayers.2.bias': param_dict["L1_BatchNorm_b"],
             "netlayers.5.weight": param_dict["L2_Linear_W"],
-            "netlayers.5.bias": param_dict["L2_Linear_b"].reshape(-1),
             'netlayers.6.weight': param_dict["L2_BatchNorm_W"],
             'netlayers.6.bias': param_dict["L2_BatchNorm_b"],
             "netlayers.9.weight": param_dict["L3_Linear_W"],
@@ -59,11 +57,9 @@ class PiNoBiasReal(BaseModel):
         internal_dict = {name: value for name, value in self.named_parameters()}
         repr_dict = dict()
         repr_dict["L1_Linear_W"] = internal_dict["netlayers.1.weight"]
-        repr_dict["L1_Linear_b"] = internal_dict["netlayers.1.bias"].reshape(-1, 1)
         repr_dict["L1_BatchNorm_W"] = internal_dict["netlayers.2.weight"]
         repr_dict["L1_BatchNorm_b"] = internal_dict["netlayers.2.bias"]
         repr_dict["L2_Linear_W"] = internal_dict["netlayers.5.weight"]
-        repr_dict["L2_Linear_b"] = internal_dict["netlayers.5.bias"].reshape(-1, 1)
         repr_dict["L2_BatchNorm_W"] = internal_dict["netlayers.6.weight"]
         repr_dict["L2_BatchNorm_b"] = internal_dict["netlayers.6.bias"]
         repr_dict["L3_Linear_W"] = internal_dict["netlayers.9.weight"]
