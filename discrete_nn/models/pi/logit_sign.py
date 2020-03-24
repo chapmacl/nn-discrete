@@ -46,15 +46,21 @@ class PiLogitSign(LogitModel):
                         real_model_params["L3_Linear_b"], discrete_weights, normalize_activations=True),
             LocalReparametrization())  # last layer outputs the unnormalized loglikelihood used by the softmax later
 
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-3, weight_decay=1e-10)
+        # optimizer configurations
+        opt_param = [
+            {"params": self.netlayers[2].parameters(), 'lr':1e-3},
+            {"params": self.netlayers[7].parameters(), 'lr':1e-3},
+            {"params": self.netlayers[1].parameters()},  # logit layers
+            {"params": self.netlayers[6].parameters()},
+            {"params": self.netlayers[11].parameters()},
+        ]
+        self.optimizer = torch.optim.Adam(opt_param, lr=1e-2, weight_decay=1e-10)
         print(self.optimizer)
         self.loss_funct = torch.nn.CrossEntropyLoss()
 
     def forward(self, x):
         # takes image vector
         return self.netlayers(x)
-
-
 
     def generate_discrete_networks(self, method: str) -> PiDiscreteSign:
         """
