@@ -62,7 +62,15 @@ class PiLogitTanh(LogitModel):
         }
         self.load_state_dict(new_state_dict, strict=False)
 
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-3, weight_decay=1e-10)
+        opt_param = [
+            {"params": self.netlayers[3].parameters(), 'lr': 1e-3},
+            {"params": self.netlayers[8].parameters(), 'lr': 1e-3},
+            {"params": self.netlayers[1].parameters()},  # logit layers
+            {"params": self.netlayers[6].parameters()},
+            {"params": self.netlayers[11].parameters()},
+        ]
+
+        self.optimizer = torch.optim.Adam(opt_param, lr=1e-2, weight_decay=1e-10)
         print(self.optimizer)
         self.loss_funct = torch.nn.CrossEntropyLoss()
 
