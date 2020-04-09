@@ -181,12 +181,12 @@ class BaseModel(torch.nn.Module):
         model_save_folder = f"{model_name}-trained"
         checkpoint_full_path = os.path.join(checkpoint_path, f"ckp_{model_name}.pickle")
         if os.path.exists(checkpoint_full_path):
-            ckp: Checkpoint = torch.load(checkpoint_full_path, map_location=device_net)
+            ckp: Checkpoint = torch.load(checkpoint_full_path, map_location="cpu")
             if continue_from_checkpoint:
                 logger.info(f"Found checkpoint for {model_name} dated {ckp.date} at epoch {ckp.epoch}."
                             f" Continuing from checkpoint.")
 
-                self.set_net_parameters(ckp.parameters)
+                self.set_net_parameters(ckp.parameters.to(device_net))
                 stats = ckp.metrics
                 start_epoch_inx = ckp.epoch
                 training_dataset = ckp.train_data_set
