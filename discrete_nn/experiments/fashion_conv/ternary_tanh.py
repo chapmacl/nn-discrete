@@ -14,7 +14,7 @@ def train_model(real_model_folder):
     batch_size = 100
 
     real_model_param_path = os.path.join(model_path, real_model_folder,
-                                         "PiReal.param.pickle")
+                                         "ConvReal.param.pickle")
     real_param = torch.load(real_model_param_path, map_location="cpu")
     logit_net = ConvLogitTanh(real_param, DiscreteWeights.TERNARY)
     logit_net = logit_net.to(device)
