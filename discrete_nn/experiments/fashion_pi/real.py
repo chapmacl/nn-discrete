@@ -14,9 +14,9 @@ def train_model():
     net = PiReal()
     net = net.to(device)
 
-    num_epochs = 100
+    num_epochs = 500
     # will save metrics and model to disk
-    return net.train_model(train_loader, validation_loader, test_loader, num_epochs, model_name="Fashion-pi-real")
+    return net.train_model(train_loader, validation_loader, test_loader, num_epochs, model_name="Fashion-pi-real-500epoch")
 
 
 if __name__ == "__main__":
