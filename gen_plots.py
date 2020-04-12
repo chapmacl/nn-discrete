@@ -1,6 +1,8 @@
 import json
 import matplotlib.pyplot as plt
 import os
+from typing import Optional
+
 """
 with open('metrics.json') as f:
     d = json.load(f)
@@ -45,22 +47,40 @@ for number, numberV in zip(values, values2):
 """
 
 
-def plot_acc(experiment_folder):
+def plot_acc(experiment_folder, plot_discrete_stats: bool):
+    """
+
+    :param experiment_folder:
+    :param plot_discrete_stats: if True, plots the discrete stats
+    :return:
+    """
     # opening metrics file
     with open(os.path.join(experiment_folder, "metrics.json")) as f:
         metrics = json.load(f)
 
+    train_acc = None
+    val_acc_logit = None
+    val_acc_disc = {}
+
     if "training_loss_post_discretize" in metrics:
         # its an alternate discretization experiment
-        train_loss = metrics["training_acc_post_discretize"]
-        val_loss = metrics["validation_acc_post_discretize"]
+        train_acc = metrics["training_acc_post_discretize"]
+        val_acc_logit = metrics["validation_acc_post_discretize"]
     else:
         # other types of experiment
-        train_loss = metrics["training_acc_post_update"]
-        val_loss = metrics["validation_acc"]
+        train_acc = metrics["training_acc_post_update"]
+        val_acc_logit = metrics["validation_acc"]
+        if plot_discrete_stats is True:
+            val_acc_disc["argmax"] = metrics["validation_acc_discrete_argmax"]
+            val_acc_disc["sample"] = metrics["validation_acc_discrete_sample"]
+        else:
+            raise ValueError(f"unknown discrete metric {plot_discrete_stats}")
     fig, ax = plt.subplots()
-    ax.plot(train_loss, 'r', label="train acc")
-    ax.plot(val_loss, 'b', label="val. acc")
+
+    ax.plot(val_acc_logit, 'b', label="val. acc (logit)")
+    ax.plot(train_acc, 'r', label="train acc (logit)")
+    for key, stats in val_acc_disc.items():
+        ax.plot(stats, label=f"val. acc discrete ({key})")
     ax.set_xlabel('epoch', fontsize=18)
     ax.set_ylabel('accuracy', fontsize=16)
 
@@ -87,6 +107,7 @@ def plot_loss(experiment_folder):
     ax.plot(val_loss, 'b', label="val. loss")
     ax.set_xlabel('epoch', fontsize=18)
     ax.set_ylabel('loss', fontsize=16)
+
     # plt.show()
     ax.legend()
     plt_save_path = os.path.join(experiment_folder, "loss_plot.png")
