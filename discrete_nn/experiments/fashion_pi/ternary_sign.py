@@ -19,7 +19,7 @@ def train_model(real_model_folder):
     logit_net = logit_net.to(device)
     train_loader, validation_loader, test_loader = fashion_mnist_dataloaders(batch_size, device, "flat")
 
-    logit_net.train_model(train_loader, validation_loader, test_loader, 200, "Fashion-Pi-Sign-Ternary", True)
+    logit_net.train_model(train_loader, validation_loader, test_loader, 500, "Fashion-Pi-Sign-500e-Ternary", True)
 
 
 if __name__ == "__main__":
