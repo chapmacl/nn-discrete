@@ -107,7 +107,6 @@ class DistributionBatchnorm(Module):
             batch_mean = torch.sum(input_mean, dim=[0, 1, 2]) / (batch_size * w * h)
             batch_var = torch.sum(input_var + torch.pow(input_mean - batch_mean, 2), dim=[0, 1, 2]) / (
                     batch_size*h*w - 1)
-            print(batch_var.shape)
         elif self._input_format == InputFormat.FLAT_ARRAY:
             # its a flat input with distributions
             input_mean = x[:, 0, :]  # a (batch_size, num_inputs) tensor
