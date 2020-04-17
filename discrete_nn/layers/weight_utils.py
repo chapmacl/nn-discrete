@@ -118,3 +118,41 @@ def discretize_weights_probabilistic(real_weights: Tensor, discrete_weight_value
     shayers_discretized = torch.log(shayers_discretized)
 
     return shayers_discretized
+
+
+def generate_weight_probabilities(logit_weights):
+    """
+    calculates the probabilities of all discrete weights for the logits provided
+
+    :param logit_weights: a tensor with dimensions (discretization levels x output features x input_features)
+    with the discrete distribution as logits
+    :return:  a tensor with dimensions (discretization levels x output features x input_features)
+    with the discrete distribution as probabilities
+    """
+    weight_probabilities = torch.exp(logit_weights)
+    weight_probabilities = weight_probabilities / weight_probabilities.sum(dim=0)
+    return weight_probabilities
+
+
+def get_gaussian_dist_parameters(logit_weights, discrete_values):
+    """
+    Fits a gaussian distribution to the logits in logit_weights.
+    :param logit_weights: a tensor with dimensions (discretization levels x output features x input_features)
+    with the discrete distribution as logits
+    :param discrete_values: a sorted list of discrete weight values
+    :return: a tuple with the means of the gaussian distributions as a (output features x input_features) tensor
+    and a the standard deviations in a tensor of the same format
+    """
+    weight_probabilities = generate_weight_probabilities(logit_weights)
+    discrete_val_tensor = torch.zeros_like(logit_weights)
+    # set the device to match that of logits
+    discrete_val_tensor = discrete_val_tensor.to(logit_weights.device)
+    for inx, discrete_weight in enumerate(discrete_values):
+        discrete_val_tensor[inx, :, :] = discrete_weight
+    discrete_val_tensor.requires_grad = True
+    weight_mean = discrete_val_tensor * weight_probabilities
+    weight_mean = weight_mean.sum(dim=0)
+
+    weight_var = weight_probabilities * torch.pow(discrete_val_tensor - weight_mean, 2)
+    weight_var = weight_var.sum(dim=0)
+    return weight_mean, weight_var

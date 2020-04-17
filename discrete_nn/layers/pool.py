@@ -71,6 +71,8 @@ class DistributionMaxPool(nn.Module):
 
             means = input_tensor[:, 0, :, :, :]
             vars = input_tensor[:, 1, :, :, :]
+            # send filter_mat to the same device as the means
+            filter_mat = filter_mat.to(means.device).double()
             # no padding like in reference implementation
             neigh_means = nn.functional.conv2d(means, filter_mat, stride=self.stride)
             neigh_vars = nn.functional.conv2d(vars, filter_mat, stride=self.stride)
@@ -123,8 +125,12 @@ class DistributionMaxPool(nn.Module):
         pdf_beta = torch.exp(n.log_prob(beta))
 
         mean_max = means1 * cdf_beta + means2 * cdf_neg_beta + alpha * pdf_beta
+
+        # the way the variance is calculated here may cause it to become variance. Epsilon is added to try to avoid that
         var_max = (vars1 + torch.pow(means1, 2)) * cdf_beta + (vars2 + torch.pow(means2, 2)) * cdf_neg_beta + \
-                  (means1 + means2) * alpha * pdf_beta - torch.pow(mean_max, 2)
+                  (means1 + means2) * alpha * pdf_beta - torch.pow(mean_max, 2) + self._epsilon
+        if torch.any(var_max < 0):
+            raise ValueError("Pooling layer: variance is negative. Epsilon should be increased")
 
         return mean_max, var_max
         

@@ -1,6 +1,6 @@
 import unittest
 
-from discrete_nn.models.mnist_pi.real import MnistPiReal
+from discrete_nn.experiments.mnist_pi.real import MnistPiReal
 
 class TestRealMnistPI(unittest.TestCase):
     def test_parameter_saving_loading(self):
