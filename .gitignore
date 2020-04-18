@@ -4,3 +4,4 @@
 dataset_files/
 .vscode
 model_files/
+checkpoints/
