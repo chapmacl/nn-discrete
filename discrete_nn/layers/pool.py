@@ -42,7 +42,6 @@ class DistributionMaxPool(nn.Module):
 
         return self._calculate_max_of_gaussians(x)
 
-
     def _gen_neighbours(self, input_tensor):
         """
         applies convolutions to return the neighbors of every cell.
@@ -98,9 +97,9 @@ class DistributionMaxPool(nn.Module):
         neigh1, neigh2, neigh3, neigh4 = self._gen_neighbours(input_feature_map)
 
         horizontal_max_1_mean, horizontal_max_1_var = self.__max_gaussians_1d(neigh1[:, 0, :, :], neigh1[:, 1, :, :],
-                                                                            neigh2[:, 0, :, :], neigh2[:, 1, :, :])
+                                                                              neigh2[:, 0, :, :], neigh2[:, 1, :, :])
         horizontal_max_2_mean, horizontal_max_2_var = self.__max_gaussians_1d(neigh3[:, 0, :, :], neigh3[:, 1, :, :],
-                                                                            neigh4[:, 0, :, :], neigh4[:, 1, :, :])
+                                                                              neigh4[:, 0, :, :], neigh4[:, 1, :, :])
 
         mean, var = self.__max_gaussians_1d(horizontal_max_1_mean, horizontal_max_1_var, horizontal_max_2_mean,
                                             horizontal_max_2_var)
@@ -140,7 +139,7 @@ if __name__ == "__main__":
     height = 15
     width = 7
     batch = 100
-    input_tensor = torch.rand(100, 2, num_channels, height, width)
+    input_tensor = torch.rand(100, 2, num_channels, height, width).double()
 
     ml = DistributionMaxPool(2)
     r = ml.forward(input_tensor)

@@ -2,10 +2,10 @@
 This module implements the real valued (non convolutionary) network for the PI model
 """
 import torch
+
 from discrete_nn.layers.type_defs import ValueTypes, InputFormat, DiscreteWeights
 from discrete_nn.layers.logit_linear import LogitLinear
 from discrete_nn.layers.sign import DistributionSign
-
 from discrete_nn.models.pi.discrete_sign import PiDiscreteSign
 from discrete_nn.layers.distribution_batchnorm import DistributionBatchnorm
 from discrete_nn.layers.local_reparametrization import LocalReparametrization
