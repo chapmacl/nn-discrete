@@ -3,7 +3,7 @@ This module implements the real valued (non convolutionary) network for the PI m
 """
 import torch
 
-from discrete_nn.layers.type_defs import ValueTypes, InputFormat, DiscreteWeights
+from discrete_nn.layers.type_defs import ValueTypes, InputFormat, DiscreteWeights, WeightTypes
 from discrete_nn.layers.logit_linear import LogitLinear
 from discrete_nn.layers.sign import DistributionSign
 from discrete_nn.models.pi.discrete_sign import PiDiscreteSign
@@ -27,23 +27,25 @@ class PiLogitSign(LogitModel):
         self.netlayers = torch.nn.Sequential(
             torch.nn.Dropout(p=0.1),
             LogitLinear(784, ValueTypes.REAL, 1200, real_model_params["L1_Linear_W"],
-                        None, discrete_weights),
-            DistributionBatchnorm(InputFormat.FLAT_ARRAY, 1200, real_model_params["L1_BatchNorm_W"],
+                        None, None, discrete_weights),
+            DistributionBatchnorm(InputFormat.FLAT_ARRAY, ValueTypes.GAUSSIAN, 1200,
+                                  real_model_params["L1_BatchNorm_W"],
                                   real_model_params["L1_BatchNorm_b"]),  # ?, momentum=0.1)
             DistributionSign(InputFormat.FLAT_ARRAY),
             LocalReparametrization(),  # outputs a value and not a dist.
 
             torch.nn.Dropout(p=0.2),
             LogitLinear(1200, ValueTypes.REAL, 1200, real_model_params["L2_Linear_W"],
-                        None, discrete_weights),
-            DistributionBatchnorm(InputFormat.FLAT_ARRAY, 1200, real_model_params["L2_BatchNorm_W"],
+                        None, None, discrete_weights),
+            DistributionBatchnorm(InputFormat.FLAT_ARRAY, ValueTypes.GAUSSIAN, 1200, real_model_params["L2_BatchNorm_W"],
                                   real_model_params["L2_BatchNorm_b"]),  # ?, momentum=0.1)
             DistributionSign(InputFormat.FLAT_ARRAY),
             LocalReparametrization(),  # outputs a value and not a dist.
 
             torch.nn.Dropout(p=0.3),
             LogitLinear(1200, ValueTypes.REAL, 10, real_model_params["L3_Linear_W"],
-                        real_model_params["L3_Linear_b"], discrete_weights, normalize_activations=True),
+                        real_model_params["L3_Linear_b"], WeightTypes.REAL,
+                        discrete_weights, normalize_activations=True),
             LocalReparametrization())  # last layer outputs the unnormalized loglikelihood used by the softmax later
 
         # optimizer configurations

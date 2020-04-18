@@ -2,10 +2,11 @@
 implements a discrete model sign activated PI architecture
 """
 import torch
-
+from discrete_nn.layers.type_defs import ValueTypes, InputFormat
 from discrete_nn.models.base_model import BaseModel
 from discrete_nn.layers.sign import DiscreteSign
 from discrete_nn.layers.linear import Linear
+from discrete_nn.layers.distribution_batchnorm import DistributionBatchnorm
 
 
 class PiDiscreteSign(BaseModel):
@@ -21,14 +22,16 @@ class PiDiscreteSign(BaseModel):
         self.netlayers = torch.nn.Sequential(
             torch.nn.Dropout(p=0.2),
             torch.nn.Linear(784, 1200, bias=False),
-            torch.nn.BatchNorm1d(1200, track_running_stats=False),
+            DistributionBatchnorm(InputFormat.FLAT_ARRAY, ValueTypes.REAL, 1200, None, None),
+            #torch.nn.BatchNorm1d(1200, track_running_stats=False),
             # momentum equivalent to alpha on reference impl.
             # should batch normalization be here or after the activation function ?
             DiscreteSign(),
             #
             torch.nn.Dropout(p=0.4),
             torch.nn.Linear(1200, 1200, bias=False),
-            torch.nn.BatchNorm1d(1200, track_running_stats=False),
+            DistributionBatchnorm(InputFormat.FLAT_ARRAY, ValueTypes.REAL, 1200, None, None),
+            #torch.nn.BatchNorm1d(1200, track_running_stats=False),
             DiscreteSign(),
             #
             torch.nn.Dropout(p=0.4),
@@ -44,11 +47,11 @@ class PiDiscreteSign(BaseModel):
     def set_net_parameters(self, param_dict):
         new_stat_dict = {
           "netlayers.1.weight": param_dict["L1_Linear_W"],
-          'netlayers.2.weight': param_dict["L1_BatchNorm_W"],
-          'netlayers.2.bias': param_dict["L1_BatchNorm_b"],
+          'netlayers.2.gamma': param_dict["L1_BatchNorm_W"],
+          'netlayers.2.beta': param_dict["L1_BatchNorm_b"],
           "netlayers.5.weight": param_dict["L2_Linear_W"],
-          'netlayers.6.weight': param_dict["L2_BatchNorm_W"],
-          'netlayers.6.bias': param_dict["L2_BatchNorm_b"],
+          'netlayers.6.gamma': param_dict["L2_BatchNorm_W"],
+          'netlayers.6.beta': param_dict["L2_BatchNorm_b"],
           "netlayers.9.weight": param_dict["L3_Linear_W"],
           "netlayers.9.bias": param_dict["L3_Linear_b"].reshape(-1)
         }

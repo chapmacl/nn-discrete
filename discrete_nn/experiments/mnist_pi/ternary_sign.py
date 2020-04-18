@@ -32,8 +32,8 @@ def train_model(real_model_folder):
 
     # evaluate first logit model before training, train and evaluate again
 
-    logit_net.train_model(train_loader, validation_loader, test_loader, 200, "MNIST-Pi-Sign-Ternary", True)
+    logit_net.train_model(train_loader, validation_loader, test_loader, 200, "MNIST-Pi-Sign-Ternary-REAL_BIAS", True)
 
 
 if __name__ == "__main__":
-    train_model("MNIST-pi-real-trained-2020-3-8--h17m34")
+    train_model("MNIST-pi-real-trained-2020-3-22--h14m1")

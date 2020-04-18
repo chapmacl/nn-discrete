@@ -3,7 +3,7 @@ Implements different linear layer classes by extending from torch.nn.Module
 """
 from typing import Optional
 
-from discrete_nn.layers.type_defs import ValueTypes, DiscreteWeights
+from discrete_nn.layers.type_defs import ValueTypes, DiscreteWeights, WeightTypes
 from discrete_nn.layers.weight_utils import discretize_weights_probabilistic, generate_weight_probabilities, get_gaussian_dist_parameters
 
 from torch import nn
@@ -13,7 +13,8 @@ import torch
 
 class LogitLinear(nn.Module):
     def __init__(self, input_features, input_feature_type: ValueTypes, output_features, initialization_weights,
-                 initialization_bias: Optional[torch.Tensor], discretized_values: DiscreteWeights,
+                 initialization_bias: Optional[torch.Tensor], bias_weight_type: Optional[WeightTypes],
+                 discretized_values: DiscreteWeights,
                  normalize_activations: bool = False):
         """
         Initializes a linear layer with discrete weights
@@ -24,6 +25,7 @@ class LogitLinear(nn.Module):
         used for initializing the discrete ones
         :param initialization_bias: a tensor (output_features x 1) with pre trained real weights for bias to be
         used for initializing the discrete ones. If None, disables bias
+        :param bias_weight_type: the weight type of the bias: Either real or logit. None if bias is not enabled
         :param discretized_values: a list of the discrete weight values (e.g. [-1, 1, 0])
         :param normalize_activations: if true normalize the activations by dividing by the number of the layer's inputs
         (including bias)
@@ -33,14 +35,22 @@ class LogitLinear(nn.Module):
         self.in_feat_type = input_feature_type
         self.ou_feat = output_features
         self.discrete_values = sorted(discretized_values.value)
+        self.bias_w_type = bias_weight_type
         self.normalize_activations = normalize_activations
         # these are the tunable parameters
         self.W_logits = torch.nn.Parameter(discretize_weights_probabilistic(initialization_weights,
                                                                             self.discrete_values),
                                            requires_grad=True)
         if initialization_bias is not None:
-            self.b_logits = torch.nn.Parameter(discretize_weights_probabilistic(initialization_bias, self.discrete_values),
-                                               requires_grad=True)
+            if bias_weight_type is None:
+                raise ValueError("Initialization values for bias were provided but not its type")
+            if bias_weight_type == WeightTypes.LOGIT:
+                self.b_logits = torch.nn.Parameter(discretize_weights_probabilistic(initialization_bias, self.discrete_values),
+                                                   requires_grad=True)
+            elif bias_weight_type == WeightTypes.REAL:
+                self.b_logits = torch.nn.Parameter(initialization_bias, requires_grad=True)
+            else:
+                raise ValueError(f"unsupported weight type {bias_weight_type} for bias")
         else:
             self.b_logits = None
 
@@ -54,7 +64,7 @@ class LogitLinear(nn.Module):
         """
         probabilities_w = generate_weight_probabilities(self.W_logits).cpu()
 
-        if self.b_logits is not None:
+        if self.b_logits is not None and self.bias_w_type == WeightTypes.LOGIT:
             probabilities_b = generate_weight_probabilities(self.b_logits).cpu()
             assert(probabilities_b.shape != probabilities_w.shape)
             probabilities_b = probabilities_b.transpose(0, 1).transpose(1, 2)
@@ -110,7 +120,10 @@ class LogitLinear(nn.Module):
         if sampled_b is not None and sampled_b.shape != (probabilities_b.shape[0], probabilities_b.shape[1]):
             raise ValueError("sampled probability mask for bias does not match expected shape")
 
-        return sampled_w, sampled_b
+        if self.bias_w_type == WeightTypes.LOGIT or self.b_logits is None:
+            return sampled_w, sampled_b
+        else:
+            return sampled_w, self.b_logits.clone().detach()
 
     def forward(self, x: torch.Tensor):
         """
@@ -146,9 +159,12 @@ class LogitLinear(nn.Module):
         output_var = output_var.transpose(0, 1)
 
         if self.b_logits is not None:
-            b_mean, b_var = get_gaussian_dist_parameters(self.b_logits, self.discrete_values)
-            output_mean += b_mean[:, 0]  # broadcasting to all samples
-            output_var += b_var[:, 0]
+            if self.bias_w_type == WeightTypes.LOGIT:
+                b_mean, b_var = get_gaussian_dist_parameters(self.b_logits, self.discrete_values)
+                output_mean += b_mean[:, 0]  # broadcasting to all samples
+                output_var += b_var[:, 0]
+            else:
+                output_mean += self.b_logits[:, 0]
 
         if self.normalize_activations:
             output_mean /= (self.in_feat + 1) ** 0.5

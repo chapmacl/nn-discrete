@@ -1,10 +1,14 @@
 from enum import Enum
 
 
+class WeightTypes(Enum):
+    REAL = "real"
+    LOGIT = "logit"
+
+
 class ValueTypes(Enum):
     REAL = "real"
     GAUSSIAN = "gaussian"
-
 
 class InputFormat(Enum):
     FLAT_ARRAY = "flat"
